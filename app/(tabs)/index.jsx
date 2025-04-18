@@ -86,11 +86,11 @@ export default function HomeScreen() {
       } else {
         // Initialize with default topics if no data exists
         const defaultTopics = [
-          { id: '1', title: 'React Native', resources: ['React Native Documentation', 'Expo Documentation'] },
-          { id: '2', title: 'JavaScript', resources: ['MDN JavaScript Guide', 'JavaScript.info'] },
-          { id: '3', title: 'TypeScript', resources: ['TypeScript Handbook', 'TypeScript Deep Dive'] },
-          { id: '4', title: 'UI/UX Design', resources: ['Material Design Guidelines', 'Figma Tutorials'] },
-          { id: '5', title: 'Data Structures', resources: ['Big O Notation Guide', 'Algorithms Book'] },
+          { id: '1', title: 'This is an Example', resources: ['Example Documentation', 'https://github.com'] },
+          // { id: '2', title: 'JavaScript', resources: ['MDN JavaScript Guide', 'JavaScript.info'] },
+          // { id: '3', title: 'TypeScript', resources: ['TypeScript Handbook', 'TypeScript Deep Dive'] },
+          // { id: '4', title: 'UI/UX Design', resources: ['Material Design Guidelines', 'Figma Tutorials'] },
+          // { id: '5', title: 'Data Structures', resources: ['Big O Notation Guide', 'Algorithms Book'] },
         ];
         setTopics(defaultTopics);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultTopics));
@@ -743,7 +743,9 @@ export default function HomeScreen() {
                 </View>
               ))}
             </ScrollView>
-
+              <View>
+                <Text style={{color: '#b8c1ec', fontSize: 12}}>Note: Add Media feature coming soon!</Text>
+              </View>
             <View style={styles.newResourceContainer}>
               <TextInput
                 style={styles.newResourceInput}
