@@ -45,16 +45,20 @@ export default function HomeScreen() {
   const [editingResource, setEditingResource] = useState(null);
   const [editedResource, setEditedResource] = useState('');
 
-  const days = Array.from({length: 31}, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  days[0] = 'None';
   const months = [
-    '01', '02', '03', '04', '05', '06', 
-    '07', '08', '09', '10', '11', '12'
+    'None','January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
-  const years = Array.from({length: 5}, (_, i) => (new Date().getFullYear() + i).toString());
-  const hours = Array.from({length: 12}, (_, i) => (i + 1).toString().padStart(2, '0'));
-  const minutes = Array.from({length: 60}, (_, i) => i.toString().padStart(2, '0'));
+  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() + i).toString());
+  years[0] = 'None';
+  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  hours[0] = 'None';
+  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+  hours[0] = 'None';
   const amPmOptions = ['AM', 'PM'];
-
+  hours[0] = 'None';
   // Load data from AsyncStorage on initial render
   useEffect(() => {
     loadData();
@@ -65,9 +69,9 @@ export default function HomeScreen() {
   useEffect(() => {
     if (searchQuery.trim()) {
       setIsSearching(true);
-      const results = topics.filter(topic => 
+      const results = topics.filter(topic =>
         topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.resources.some(resource => 
+        topic.resources.some(resource =>
           resource.toLowerCase().includes(searchQuery.toLowerCase())
         )
       );
@@ -135,7 +139,7 @@ export default function HomeScreen() {
       await AsyncStorage.setItem(SCHEDULED_TOPICS_KEY, JSON.stringify(updatedScheduledTopics));
 
       // Update the original topic to show it's scheduled
-      const updatedTopics = topics.map(t => 
+      const updatedTopics = topics.map(t =>
         t.id === topic.id ? { ...t, isScheduled: true } : t
       );
       setTopics(updatedTopics);
@@ -156,11 +160,11 @@ export default function HomeScreen() {
         }
         return topic;
       });
-      
+
       setTopics(updatedTopics);
       setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
       setNewResource('');
-      
+
       await saveData(updatedTopics);
     }
   };
@@ -176,11 +180,11 @@ export default function HomeScreen() {
         }
         return topic;
       });
-      
+
       setTopics(updatedTopics);
       setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
       setEditingTitle(false);
-      
+
       await saveData(updatedTopics);
     }
   };
@@ -198,7 +202,7 @@ export default function HomeScreen() {
       setSelectedTopic(newTopic);
       setNewTopicTitle('');
       setIsAddingTopic(false);
-      
+
       await saveData(updatedTopics);
     }
   };
@@ -211,16 +215,15 @@ export default function HomeScreen() {
   const highlightText = (text, query) => {
     if (!query) return text;
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
-    return parts.map((part, i) => 
-      part.toLowerCase() === query.toLowerCase() ? 
-        <Text key={i} style={styles.highlightedText}>{part}</Text> : 
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase() ?
+        <Text key={i} style={styles.highlightedText}>{part}</Text> :
         part
     );
   };
 
   const handleSchedule = async () => {
-    if (selectedTopic && selectedDay && selectedMonth && selectedYear && 
-        selectedHour && selectedMinute && selectedAmPm) {
+    if (selectedMonth && selectedYear) {
       const scheduledDate = `${selectedDay}-${selectedMonth}-${selectedYear}`;
       const scheduledTime = `${selectedHour}-${selectedMinute}-00 ${selectedAmPm}`;
       await saveScheduledTopic(selectedTopic, scheduledTime, scheduledDate);
@@ -240,16 +243,16 @@ export default function HomeScreen() {
 
   const renderDropdown = (items, selectedValue, setSelectedValue, showDropdown, setShowDropdown) => (
     <View style={styles.dropdownContainer}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.dropdownButton}
         onPress={() => setShowDropdown(!showDropdown)}>
         <Text style={styles.dropdownButtonText}>
           {selectedValue || 'Select'}
         </Text>
-        <MaterialIcons 
-          name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
-          size={24} 
-          color="#b8c1ec" 
+        <MaterialIcons
+          name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+          size={24}
+          color="#b8c1ec"
         />
       </TouchableOpacity>
       {showDropdown && (
@@ -310,14 +313,42 @@ export default function HomeScreen() {
     );
   };
 
+  // const isUrl = (str) => {
+  //   const match = str.match(/https?:\/\/[^\s]+/) || str.match(/www\.[^\s]+/) || str.match(/[^\s]+\.[^\s]+/);
+  //   if (!match) return false;
+
+  //   try {
+  //     new URL(match[0]);
+  //     return true;
+  //   } catch {
+  //     return false;
+  //   }
+  // };
+
+
   const isUrl = (str) => {
+    const domainExtensions = ['.com', '.org', '.net', '.io', '.edu', '.gov', '.me', '.co', '.app'];
+    const hasLikelyDomain = domainExtensions.some(ext => str.includes(ext)) || str.includes('www.') || str.includes('https://') || str.includes('http://');
+
+    if (!hasLikelyDomain) return false;
+
+    const match =
+      str.match(/https?:\/\/[^\s]+/) ||
+      str.match(/www\.[^\s]+/) ||
+      str.match(/[^\s]+\.(com|org|net|io|edu|gov|me|co|app)/);
+
+    if (!match) return false;
+
     try {
-      new URL(str);
+      // Add protocol if not present (for URL constructor to work)
+      const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
+      new URL(url);
       return true;
     } catch {
       return false;
     }
   };
+
 
   const handleResourceAction = (resource) => {
     if (isUrl(resource)) {
@@ -354,19 +385,19 @@ export default function HomeScreen() {
         if (topic.id === selectedTopic.id) {
           return {
             ...topic,
-            resources: topic.resources.map(resource => 
+            resources: topic.resources.map(resource =>
               resource === editingResource ? editedResource.trim() : resource
             )
           };
         }
         return topic;
       });
-      
+
       setTopics(updatedTopics);
       setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
       setEditingResource(null);
       setEditedResource('');
-      
+
       await saveData(updatedTopics);
     }
   };
@@ -394,10 +425,10 @@ export default function HomeScreen() {
                 }
                 return topic;
               });
-              
+
               setTopics(updatedTopics);
               setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
-              
+
               await saveData(updatedTopics);
             }
           }
@@ -440,7 +471,7 @@ export default function HomeScreen() {
 
       const jsonString = JSON.stringify(exportData, null, 2);
       const fileUri = FileSystem.documentDirectory + `${topic.title.replace(/\s+/g, '_')}.json`;
-      
+
       await FileSystem.writeAsStringAsync(fileUri, jsonString);
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
@@ -465,17 +496,16 @@ export default function HomeScreen() {
           <body>
             <h1>${topic.title}</h1>
             <h2>Resources:</h2>
-            ${topic.resources.map((resource, index) => 
-              `<div class="resource">${index + 1}. ${resource}</div>`
-            ).join('')}
+            ${topic.resources.map((resource, index) =>
+        `<div class="resource">${index + 1}. ${resource}</div>`
+      ).join('')}
           </body>
         </html>
       `;
 
       const fileUri = FileSystem.documentDirectory + `${topic.title.replace(/\s+/g, '_')}.pdf`;
-      
-      // Note: You'll need to implement actual PDF generation here
-      // This is a placeholder for the PDF export functionality
+
+      //  implement actual PDF generation here
       Alert.alert("Info", "PDF export will be implemented in the next update");
     } catch (error) {
       Alert.alert("Error", "Failed to export PDF file");
@@ -484,8 +514,7 @@ export default function HomeScreen() {
 
   const handleExportDOCX = async (topic) => {
     try {
-      // Note: You'll need to implement actual DOCX generation here
-      // This is a placeholder for the DOCX export functionality
+      // implement actual DOCX generation here
       Alert.alert("Info", "DOCX export will be implemented in the next update");
     } catch (error) {
       Alert.alert("Error", "Failed to export DOCX file");
@@ -553,23 +582,23 @@ export default function HomeScreen() {
                 <View style={styles.topicCardContent}>
                   <ThemedText type="defaultSemiBold">{topic.title}</ThemedText>
                 </View>
-                <Text style={{color: '#b8c1ec', fontWeight: 'bold'}}>{topic.resources.length} resources</Text>
+                <Text style={{ color: '#b8c1ec', fontWeight: 'bold' }}>{topic.resources.length} resources</Text>
               </TouchableOpacity>
               <View style={styles.topicActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.calendarButton}
                   onPress={(e) => {
                     e.stopPropagation();
                     setSelectedTopic(topic);
                     setIsScheduling(true);
                   }}>
-                  <FontAwesome 
-                    name="calendar" 
-                    size={24} 
-                    color={topic.isScheduled ? '#4CAF50' : '#b8c1ec'} 
+                  <FontAwesome
+                    name="calendar"
+                    size={24}
+                    color={topic.isScheduled ? '#4CAF50' : '#b8c1ec'}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -581,7 +610,7 @@ export default function HomeScreen() {
             </View>
           ))}
         </ScrollView>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setIsAddingTopic(true)}>
           <ThemedText style={styles.addButtonText}>+ Add New Topic</ThemedText>
@@ -597,7 +626,7 @@ export default function HomeScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setIsAddingTopic(false)}>
                 <AntDesign name="caretleft" size={28} color="white" />
@@ -611,7 +640,7 @@ export default function HomeScreen() {
                   autoFocus
                   onSubmitEditing={handleAddTopic}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.saveTitleButton}
                   onPress={handleAddTopic}>
                   <MaterialIcons name="check" size={24} color="white" />
@@ -619,8 +648,8 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            
-            
+
+
             <View style={styles.newResourceContainer}>
               <TextInput
                 style={styles.newResourceInput}
@@ -629,7 +658,7 @@ export default function HomeScreen() {
                 onChangeText={setNewResource}
                 onSubmitEditing={handleAddResource}
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addResourceButton}
                 onPress={handleAddResource}>
                 <Entypo name="add-to-list" size={24} color="black" />
@@ -655,7 +684,7 @@ export default function HomeScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => {
                   setSelectedTopic(null);
@@ -673,7 +702,7 @@ export default function HomeScreen() {
                     autoFocus
                     onSubmitEditing={handleEditTitle}
                   />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.saveTitleButton}
                     onPress={handleEditTitle}>
                     <MaterialIcons name="check" size={24} color="white" />
@@ -685,12 +714,12 @@ export default function HomeScreen() {
                     {selectedTopic?.title}
                   </ThemedText>
                   <View style={styles.modalActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.editTitleButton}
                       onPress={startEditing}>
                       <MaterialIcons name="edit" size={24} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.shareButton}
                       onPress={() => handleShareOptions(selectedTopic)}>
                       <MaterialIcons name="share" size={24} color="#b8c1ec" />
@@ -700,7 +729,7 @@ export default function HomeScreen() {
               )}
             </View>
 
-            
+
 
             <ScrollView style={styles.resourcesList}>
               {selectedTopic?.resources.map((resource, index) => (
@@ -715,26 +744,39 @@ export default function HomeScreen() {
                         autoFocus
                         onSubmitEditing={handleEditResource}
                       />
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.saveResourceButton}
                         onPress={handleEditResource}>
                         <MaterialIcons name="check" size={24} color="white" />
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <Text style={styles.resourceText}>{resource}</Text>
+                    <>
+                      {/* <Text style={styles.resourceText}>{resource.split('https://')[0]}</Text> */}
+                      {/* <Text style={styles.resourceText}>{resource}</Text> */}
+                      <View>
+                        {resource.includes('https://') || resource.includes('www.') || resource.includes('.com') || resource.includes('.org') || resource.includes('.net') || resource.includes('.io') || resource.includes('.edu') || resource.includes('.app') || resource.includes('.gov') || resource.includes('.me') || resource.includes('.co') ? (
+                          <TouchableOpacity onPress={() => Linking.openURL(resource)}>
+                            <Text style={{ color: '#b8c1ec' }}>{resource}</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={{ color: 'white' }}>{resource}</Text>
+                        )}
+                      </View>
+                    </>
                   )}
                   <View style={styles.resourceActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.resourceActionButton}
-                      onPress={() => handleResourceAction(resource)}>
-                      <MaterialIcons 
-                        name={isUrl(resource) ? "link" : "edit"} 
-                        size={20} 
-                        color="#b8c1ec" 
+                      onPress={() => handleResourceAction(resource)}
+                    >
+                      <MaterialIcons
+                        name={resource.includes('https://') || resource.includes('www.') || resource.includes('.com') || resource.includes('.org') || resource.includes('.net') || resource.includes('.io') || resource.includes('.edu') || resource.includes('.app') || resource.includes('.gov') || resource.includes('.me') || resource.includes('.co') ? 'link' : 'edit'}
+                        size={20}
+                        color="#b8c1ec"
                       />
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.resourceActionButton}
                       onPress={() => handleDeleteResource(resource)}>
                       <MaterialIcons name="delete" size={20} color="#ff4444" />
@@ -743,9 +785,9 @@ export default function HomeScreen() {
                 </View>
               ))}
             </ScrollView>
-              <View>
-                <Text style={{color: '#b8c1ec', fontSize: 12}}>Note: Add Media feature coming soon!</Text>
-              </View>
+            <View>
+              <Text style={{ color: '#b8c1ec', fontSize: 12 }}>Note: Add Media feature coming soon!</Text>
+            </View>
             <View style={styles.newResourceContainer}>
               <TextInput
                 style={styles.newResourceInput}
@@ -754,7 +796,7 @@ export default function HomeScreen() {
                 onChangeText={setNewResource}
                 onSubmitEditing={handleAddResource}
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addResourceButton}
                 onPress={handleAddResource}>
                 <Entypo name="add-to-list" size={24} color="black" />
@@ -776,7 +818,7 @@ export default function HomeScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setIsScheduling(false)}>
                 <AntDesign name="caretleft" size={28} color="white" />
@@ -785,32 +827,34 @@ export default function HomeScreen() {
                 Schedule Topic
               </ThemedText>
             </View>
-            
+            <Text style={{ color: '#b8c1ec', fontSize: 14 }}>Note: Specific day and time aren't necessary, you can select month and year</Text>
             <View style={styles.scheduleInputContainer}>
-              <Text style={styles.scheduleLabel}>Date:</Text>
+              <Text style={styles.scheduleLabel}>Date: <Text style={{ color: '#b8c1ec' }}>[DD-MM-YYYY]</Text></Text>
               <View style={styles.dateTimeRow}>
                 {renderDropdown(days, selectedDay, setSelectedDay, showDayDropdown, setShowDayDropdown)}
                 {renderDropdown(months, selectedMonth, setSelectedMonth, showMonthDropdown, setShowMonthDropdown)}
                 {renderDropdown(years, selectedYear, setSelectedYear, showYearDropdown, setShowYearDropdown)}
               </View>
 
-              <Text style={styles.scheduleLabel}>Time:</Text>
+              <Text style={styles.scheduleLabel}>Time: <Text style={{ color: '#b8c1ec' }}>[HH:MM AM/PM]</Text></Text>
               <View style={styles.dateTimeRow}>
                 {renderDropdown(hours, selectedHour, setSelectedHour, showHourDropdown, setShowHourDropdown)}
                 {renderDropdown(minutes, selectedMinute, setSelectedMinute, showMinuteDropdown, setShowMinuteDropdown)}
                 {renderDropdown(amPmOptions, selectedAmPm, setSelectedAmPm, showAmPmDropdown, setShowAmPmDropdown)}
               </View>
             </View>
-
-            <TouchableOpacity 
+            <View>
+              
+            </View>
+            <TouchableOpacity
               style={[
                 styles.scheduleButton,
-                (!selectedDay || !selectedMonth || !selectedYear || 
-                 !selectedHour || !selectedMinute || !selectedAmPm) && styles.disabledButton
+                // (!selectedDay || !selectedMonth || !selectedYear ||
+                //   !selectedHour || !selectedMinute || !selectedAmPm) && styles.disabledButton
+                (!selectedMonth || !selectedYear) && styles.disabledButton
               ]}
               onPress={handleSchedule}
-              disabled={!selectedDay || !selectedMonth || !selectedYear || 
-                       !selectedHour || !selectedMinute || !selectedAmPm}>
+              disabled={!selectedMonth || !selectedYear}>
               <Text style={styles.scheduleButtonText}>Schedule</Text>
             </TouchableOpacity>
           </View>
@@ -843,7 +887,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 16,
     paddingHorizontal: 12,
-    
+
   },
   searchInput: {
     flex: 1,
@@ -1074,6 +1118,7 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     flex: 1,
     marginHorizontal: 4,
+    
   },
   dropdownButton: {
     flexDirection: 'row',
@@ -1088,10 +1133,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   dropdownList: {
-    maxHeight: 150,
+    maxHeight: '300',
+    // overflow: 'scroll',
     backgroundColor: '#121629',
     borderRadius: 8,
-    marginTop: 4,
+    marginTop: 50,
     position: 'absolute',
     width: '100%',
     zIndex: 1,

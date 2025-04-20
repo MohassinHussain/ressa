@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import { useNavigation } from '@react-navigation/native';
 
 const SCHEDULED_TOPICS_KEY = '@scheduled_topics';
 const STORAGE_KEY = '@learning_resources';
@@ -22,6 +23,15 @@ export default function ReviseScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadScheduledTopics();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     loadScheduledTopics();
