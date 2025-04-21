@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert, Linking, Share } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert, Linking, Share, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
@@ -10,11 +10,19 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { Collapsible } from '@/components/Collapsible';
+import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
+import React from 'react';
 
 const STORAGE_KEY = '@learning_resources';
 const SCHEDULED_TOPICS_KEY = '@scheduled_topics';
 
 export default function HomeScreen() {
+
+  const navigation = useNavigation();
+
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [newResource, setNewResource] = useState('');
@@ -45,6 +53,10 @@ export default function HomeScreen() {
   const [editingResource, setEditingResource] = useState(null);
   const [editedResource, setEditedResource] = useState('');
 
+  const [pickedImage, setPickedImage] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+
   const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   days[0] = 'None';
   const months = [
@@ -63,7 +75,7 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData();
     loadScheduledTopics();
-  }, []);
+  }, [navigation]);
 
   // Handle search
   useEffect(() => {
@@ -251,7 +263,7 @@ export default function HomeScreen() {
         </Text>
         <MaterialIcons
           name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-          size={24}
+          size={hp(2)}
           color="#b8c1ec"
         />
       </TouchableOpacity>
@@ -521,6 +533,53 @@ export default function HomeScreen() {
     }
   };
 
+// add image as resource
+  const handleAddImageResource = async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        // mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        // 'videos' causes memory increase so we're only using images
+        mediaTypes: ['images'],
+        // allowsEditing: true,
+        // aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled && selectedTopic) {
+        const imageUri = result.assets[0].uri;
+        const updatedTopics = topics.map(topic => {
+          if (topic.id === selectedTopic.id) {
+            return {
+              ...topic,
+              resources: [...topic.resources, imageUri]
+            };
+          }
+          return topic;
+        });
+        
+        setTopics(updatedTopics);
+        setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
+        await saveData(updatedTopics);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to add image');
+    }
+  };
+
+  // Add this function to check if a resource is an image
+  const isImage = (resource) => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
+  };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    loadData();
+    loadScheduledTopics();
+    setRefreshing(false);
+  }, []);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -541,13 +600,17 @@ export default function HomeScreen() {
             onChangeText={setSearchQuery}
             placeholderTextColor="#b8c1ec"
           />
-          <MaterialIcons name="search" size={24} color="#b8c1ec" style={styles.searchIcon} />
+          <MaterialIcons name="search" size={hp(2)} color="#b8c1ec" style={styles.searchIcon} />
         </View>
       </View>
 
       {isSearching && searchResults.length > 0 && (
         <View style={styles.searchResultsContainer}>
-          <ScrollView style={styles.searchResults}>
+          <ScrollView 
+            style={styles.searchResults}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }>
             {searchResults.map((topic) => (
               <TouchableOpacity
                 key={topic.id}
@@ -557,7 +620,7 @@ export default function HomeScreen() {
                   setSearchQuery('');
                 }}>
                 <Text style={styles.searchResultTitle}>
-                  {highlightText(topic.title, searchQuery)}
+                  Title: {highlightText(topic.title, searchQuery)}
                 </Text>
                 {topic.resources.map((resource, index) => (
                   resource.toLowerCase().includes(searchQuery.toLowerCase()) && (
@@ -573,7 +636,11 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.content}>
-        <ScrollView style={styles.topicsContainer}>
+        <ScrollView 
+          style={styles.topicsContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }>
           {topics.map((topic) => (
             <View key={topic.id} style={styles.topicCardContainer}>
               <TouchableOpacity
@@ -594,7 +661,7 @@ export default function HomeScreen() {
                   }}>
                   <FontAwesome
                     name="calendar"
-                    size={24}
+                    size={hp(2)}
                     color={topic.isScheduled ? '#4CAF50' : '#b8c1ec'}
                   />
                 </TouchableOpacity>
@@ -604,7 +671,7 @@ export default function HomeScreen() {
                     e.stopPropagation();
                     handleDeleteTopic(topic);
                   }}>
-                  <MaterialIcons name="delete" size={24} color="#ff4444" />
+                  <MaterialIcons name="delete" size={hp(2)} color="#ff4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -643,7 +710,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.saveTitleButton}
                   onPress={handleAddTopic}>
-                  <MaterialIcons name="check" size={24} color="white" />
+                  <MaterialIcons name="check" size={hp(2)} color="white" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -661,10 +728,10 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.addResourceButton}
                 onPress={handleAddResource}>
-                <Entypo name="add-to-list" size={24} color="black" />
+                <Entypo name="add-to-list" size={hp(2)} color="black" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.mediaButton}>
-                <MaterialIcons name="perm-media" size={24} color="black" />
+                <MaterialIcons name="perm-media" size={hp(2)} color="black" />
               </TouchableOpacity>
             </View>
           </View>
@@ -705,7 +772,7 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={styles.saveTitleButton}
                     onPress={handleEditTitle}>
-                    <MaterialIcons name="check" size={24} color="white" />
+                    <MaterialIcons name="check" size={hp(2)} color="white" />
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -717,12 +784,12 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       style={styles.editTitleButton}
                       onPress={startEditing}>
-                      <MaterialIcons name="edit" size={24} color="white" />
+                      <MaterialIcons name="edit" size={hp(2)} color="white" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.shareButton}
                       onPress={() => handleShareOptions(selectedTopic)}>
-                      <MaterialIcons name="share" size={24} color="#b8c1ec" />
+                      <MaterialIcons name="share" size={hp(2)} color="#b8c1ec" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -730,7 +797,7 @@ export default function HomeScreen() {
             </View>
 
 
-
+{/* Resource items */}
             <ScrollView style={styles.resourcesList}>
               {selectedTopic?.resources.map((resource, index) => (
                 <View key={index} style={styles.resourceItem}>
@@ -738,6 +805,9 @@ export default function HomeScreen() {
                   {editingResource === resource ? (
                     <View style={styles.resourceEditContainer}>
                       <TextInput
+                        multiline
+                        numberOfLines={8}
+                        maxLength={700}
                         style={styles.resourceEditInput}
                         value={editedResource}
                         onChangeText={setEditedResource}
@@ -752,28 +822,36 @@ export default function HomeScreen() {
                     </View>
                   ) : (
                     <>
-                      {/* <Text style={styles.resourceText}>{resource.split('https://')[0]}</Text> */}
-                      {/* <Text style={styles.resourceText}>{resource}</Text> */}
-                      <View>
-                        {resource.includes('https://') || resource.includes('www.') || resource.includes('.com') || resource.includes('.org') || resource.includes('.net') || resource.includes('.io') || resource.includes('.edu') || resource.includes('.app') || resource.includes('.gov') || resource.includes('.me') || resource.includes('.co') ? (
-                          <TouchableOpacity onPress={() => Linking.openURL(resource)}>
-                            <Text style={{ color: '#b8c1ec' }}>{resource}</Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <Text style={{ color: 'white' }}>{resource}</Text>
-                        )}
-                      </View>
+                      {isImage(resource) ? (
+                        <Collapsible title="View Image">
+                          <Image
+                            source={{ uri: resource }}
+                            style={styles.resourceImage}
+                            resizeMode="contain"
+                          />
+                        </Collapsible>
+                      ) : (
+                        // <Text style={styles.resourceText}>{resource}</Text>
+                        <View>
+                          {isUrl(resource) ? (
+                            <TouchableOpacity onPress={() => Linking.openURL(resource)}>
+                              <Text style={{ color: '#b8c1ec' }}>{resource}</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text style={{ color: 'white' }}>{resource}</Text>
+                          )}
+                        </View>
+                      )}
                     </>
                   )}
                   <View style={styles.resourceActions}>
                     <TouchableOpacity
                       style={styles.resourceActionButton}
-                      onPress={() => handleResourceAction(resource)}
-                    >
-                      <MaterialIcons
-                        name={resource.includes('https://') || resource.includes('www.') || resource.includes('.com') || resource.includes('.org') || resource.includes('.net') || resource.includes('.io') || resource.includes('.edu') || resource.includes('.app') || resource.includes('.gov') || resource.includes('.me') || resource.includes('.co') ? 'link' : 'edit'}
-                        size={20}
-                        color="#b8c1ec"
+                      onPress={() => handleResourceAction(resource)}>
+                      <MaterialIcons 
+                        name={isUrl(resource) ? "link" : isImage(resource) ? "image" : "edit"} 
+                        size={20} 
+                        color="#b8c1ec" 
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -786,10 +864,13 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
             <View>
-              <Text style={{ color: '#b8c1ec', fontSize: 12 }}>Note: Add Media feature coming soon!</Text>
+              <Text style={{ color: '#b8c1ec', fontSize: hp('1.1%') }}>Note: Add Media feature coming soon!</Text>
             </View>
             <View style={styles.newResourceContainer}>
               <TextInput
+              multiline
+              numberOfLines={15}
+              // maxLength={700}
                 style={styles.newResourceInput}
                 placeholder="Add new resource..."
                 value={newResource}
@@ -799,10 +880,15 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.addResourceButton}
                 onPress={handleAddResource}>
-                <Entypo name="add-to-list" size={24} color="black" />
+                <Entypo name="add-to-list" size={hp(2)} color="black" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaButton}>
-                <MaterialIcons name="perm-media" size={24} color="black" />
+
+{/* add image as resource */}
+
+              <TouchableOpacity style={styles.mediaButton} 
+                onPress={handleAddImageResource}
+              >
+                <MaterialIcons name="perm-media" size={hp(2)} color="black" />
               </TouchableOpacity>
             </View>
           </View>
@@ -827,7 +913,7 @@ export default function HomeScreen() {
                 Schedule Topic
               </ThemedText>
             </View>
-            <Text style={{ color: '#b8c1ec', fontSize: 14 }}>Note: Specific day and time aren't necessary, you can select month and year</Text>
+            <Text style={{ color: '#b8c1ec', fontSize: hp('1.5%') }}>Note: Specific day and time aren't necessary, you can select month and year</Text>
             <View style={styles.scheduleInputContainer}>
               <Text style={styles.scheduleLabel}>Date: <Text style={{ color: '#b8c1ec' }}>[DD-MM-YYYY]</Text></Text>
               <View style={styles.dateTimeRow}>
@@ -876,7 +962,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#232946',
   },
   header: {
-    padding: 16,
+    padding: wp('4%'),
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -884,45 +970,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#121629',
-    borderRadius: 8,
-    marginTop: 16,
-    paddingHorizontal: 12,
-
+    borderRadius: wp('2%'),
+    marginTop: hp('2%'),
+    paddingHorizontal: wp('3%'),
   },
   searchInput: {
     flex: 1,
     color: '#fff',
-    padding: 12,
-    fontSize: 16,
+    padding: wp('2%'),
+    fontSize: wp('3%'),
   },
   searchIcon: {
-    marginLeft: 8,
+    marginLeft: wp('2%'),
   },
   searchResultsContainer: {
     backgroundColor: '#121629',
-    marginHorizontal: 16,
-    borderRadius: 8,
-    maxHeight: 200,
-    marginTop: 16,
+    marginHorizontal: wp('4%'),
+    borderRadius: wp('2%'),
+    maxHeight: hp('25%'),
+    marginTop: hp('2%'),
   },
   searchResults: {
-    padding: 8,
+    padding: wp('2%'),
   },
   searchResultItem: {
-    padding: 12,
+    padding: wp('3%'),
     borderBottomWidth: 1,
     borderBottomColor: '#232946',
   },
   searchResultTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: wp('3%'),
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: hp('1%'),
   },
   searchResultResource: {
     color: '#b8c1ec',
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: wp('3.5%'),
+    marginLeft: wp('2%'),
   },
   highlightedText: {
     backgroundColor: '#FFD700',
@@ -930,20 +1015,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: wp('4%'),
   },
   topicsContainer: {
-    gap: 12,
+    gap: hp('1.5%'),
   },
   topicCardContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hp('2%'),
+    justifyContent: 'space-between',
   },
   topicCard: {
-    width: '80%',
-    padding: 16,
-    borderRadius: 8,
+    width: wp('70%'),
+    padding: wp('4%'),
+    borderRadius: wp('2%'),
     backgroundColor: '#232946',
     borderWidth: 1,
     borderColor: '#b8c1ec',
@@ -962,13 +1048,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editButton: {
-    padding: 4,
+    padding: wp('1%'),
   },
   addButton: {
-    marginTop: 16,
-    padding: 16,
+    marginTop: hp('2%'),
+    padding: wp('4%'),
     backgroundColor: '#007AFF',
-    borderRadius: 8,
+    borderRadius: wp('2%'),
     alignItems: 'center',
   },
   addButtonText: {
@@ -983,17 +1069,17 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#0f0e17',
     height: '100%',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    padding: 16,
+    borderTopLeftRadius: wp('2.5%'),
+    borderTopRightRadius: wp('2.5%'),
+    padding: wp('4%'),
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hp('2%'),
   },
   closeButton: {
-    padding: 8,
+    padding: wp('2%'),
   },
   titleContainer: {
     flexDirection: 'row',
@@ -1006,25 +1092,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalTitle: {
-    marginLeft: 8,
-    fontSize: 20,
+    marginLeft: wp('2%'),
+    fontSize: wp('4.2%'),
     color: 'white',
   },
   titleInput: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 8,
-    borderRadius: 8,
-    marginLeft: 8,
-    fontSize: 20,
+    padding: wp('2%'),
+    borderRadius: wp('2%'),
+    marginLeft: wp('2%'),
+    fontSize: wp('4%'),
   },
   editTitleButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
   },
   saveTitleButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
   },
   resourcesList: {
     flex: 1,
@@ -1032,9 +1118,9 @@ const styles = StyleSheet.create({
   resourceItem: {
     flexDirection: 'row',
     backgroundColor: '#121629',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
+    marginBottom: hp('1%'),
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#b8c1ec',
@@ -1046,70 +1132,78 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
     elevation: 2,
+    flexWrap: 'wrap',
   },
   resourceNumber: {
     color: '#fff',
-    marginRight: 8,
+    marginRight: wp('2%'),
     fontWeight: 'bold',
+    width: wp('5%'),
   },
   resourceText: {
     color: '#fff',
     flex: 1,
+    marginRight: wp('2%'),
+    flexShrink: 1,
   },
   newResourceContainer: {
     flexDirection: 'row',
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: hp('2%'),
+    marginBottom: hp('2%'),
   },
   newResourceInput: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginRight: 8,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
+    marginRight: wp('2%'),
   },
   addResourceButton: {
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   mediaButton: {
-    width: '10%',
+    width: wp('10%'),
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginLeft: 5,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
+    marginLeft: wp('1%'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   calendarButton: {
-    padding: 8,
+    padding: wp('2%'),
+    backgroundColor: '#232946',
+    borderRadius: wp('2%'),
+    borderWidth: 1,
+    borderColor: '#b8c1ec',
   },
   scheduleInputContainer: {
-    padding: 16,
+    padding: wp('4%'),
   },
   scheduleLabel: {
     color: '#fff',
-    fontSize: 16,
-    marginBottom: 8,
+    fontSize: wp('3%'),
+    marginBottom: hp('1%'),
   },
   dateTimeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: hp('2%'),
   },
   scheduleButton: {
     backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 8,
+    padding: wp('4%'),
+    borderRadius: wp('2%'),
     alignItems: 'center',
-    margin: 16,
+    margin: wp('4%'),
   },
   scheduleButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: wp('3%'),
     fontWeight: 'bold',
   },
   disabledButton: {
@@ -1117,79 +1211,111 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     flex: 1,
-    marginHorizontal: 4,
-    
+    marginHorizontal: wp('1%'),
   },
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#121629',
-    padding: 12,
-    borderRadius: 8,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
   },
   dropdownButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: wp('3%'),
   },
   dropdownList: {
-    maxHeight: '300',
-    // overflow: 'scroll',
+    maxHeight: hp('30%'),
     backgroundColor: '#121629',
-    borderRadius: 8,
-    marginTop: 50,
+    borderRadius: wp('2%'),
+    marginTop: hp('6%'),
     position: 'absolute',
     width: '100%',
     zIndex: 1,
   },
   dropdownItem: {
-    padding: 12,
+    padding: wp('3%'),
     borderBottomWidth: 1,
     borderBottomColor: '#232946',
   },
   dropdownItemText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: wp('3%'),
   },
   topicActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: wp('2%'),
+    gap: wp('2%'),
   },
   deleteButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    backgroundColor: '#232946',
+    borderRadius: wp('2%'),
+    borderWidth: 1,
+    borderColor: '#ff4444',
   },
   resourceEditContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: wp('2%'),
   },
   resourceEditInput: {
     flex: 1,
     backgroundColor: '#232946',
     color: '#fff',
-    padding: 8,
-    borderRadius: 4,
-    marginRight: 8,
+    padding: wp('2%'),
+    borderRadius: wp('1%'),
+    marginRight: wp('2%'),
+    flexShrink: 1,
   },
   resourceActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 'auto',
   },
   resourceActionButton: {
-    padding: 4,
-    marginLeft: 8,
+    padding: wp('1%'),
+    marginLeft: wp('2%'),
+    backgroundColor: '#232946',
+    borderRadius: wp('1%'),
+    borderWidth: 1,
+    borderColor: '#b8c1ec',
   },
   saveResourceButton: {
-    padding: 4,
+    padding: wp('1%'),
   },
   modalActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   shareButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
+  },
+  resourceImage: {
+    width: '100%',
+    height: undefined,
+    aspectRatio: 1,
+    borderRadius: wp('2%'),
+    marginTop: hp('1%'),
+    backgroundColor: '#232946',
+  },
+  collapsibleContainer: {
+    backgroundColor: '#232946',
+    borderRadius: wp('2%'),
+    padding: wp('2%'),
+    marginBottom: hp('1%'),
+    
+  },
+  collapsibleTitle: {
+    color: '#fff',
+    fontSize: wp('4%'),
+    fontWeight: 'bold',
+  },
+  collapsibleContent: {
+    marginTop: hp('1%'),
   },
 }); 

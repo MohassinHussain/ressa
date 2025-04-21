@@ -1,12 +1,13 @@
-import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert, Linking, Share, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useNavigation } from '@react-navigation/native';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
 const SCHEDULED_TOPICS_KEY = '@scheduled_topics';
 const STORAGE_KEY = '@learning_resources';
@@ -23,6 +24,7 @@ export default function ReviseScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -239,6 +241,12 @@ export default function ReviseScreen() {
     );
   };
 
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    loadScheduledTopics();
+    setRefreshing(false);
+  }, []);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -291,7 +299,11 @@ export default function ReviseScreen() {
       )}
 
       <View style={styles.content}>
-        <ScrollView style={styles.topicsContainer}>
+        <ScrollView 
+          style={styles.topicsContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }>
           {scheduledTopics.map((topic) => (
             <TouchableOpacity
               key={topic.id}
@@ -340,7 +352,7 @@ export default function ReviseScreen() {
               </TouchableOpacity>
               {editingTitle ? (
                 <View style={styles.titleEditContainer}>
-                  <TextInput
+                  <TextInput         
                     style={styles.titleInput}
                     value={editedTitle}
                     onChangeText={setEditedTitle}
@@ -387,6 +399,9 @@ export default function ReviseScreen() {
                   {editingResource === resource ? (
                     <View style={styles.resourceEditContainer}>
                       <TextInput
+                      multiline
+                      numberOfLines={8}
+                      maxLength={700}
                         style={styles.resourceEditInput}
                         value={editedResource}
                         onChangeText={setEditedResource}
@@ -440,24 +455,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#232946',
   },
   header: {
-    padding: 16,
+    padding: wp('4%'),
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: wp('4%'),
   },
   topicsContainer: {
-    gap: 12,
+    gap: hp('1.5%'),
   },
   topicCard: {
-    padding: 16,
-    borderRadius: 8,
+    padding: wp('4%'),
+    borderRadius: wp('2%'),
     backgroundColor: '#232946',
     borderWidth: 1,
     borderColor: '#eee',
-    marginBottom: 16,
+    marginBottom: hp('2%'),
   },
   topicCardContent: {
     flexDirection: 'row',
@@ -465,14 +480,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scheduleInfo: {
-    marginVertical: 8,
-    padding: 8,
+    marginVertical: hp('1%'),
+    padding: wp('2%'),
     backgroundColor: '#121629',
-    borderRadius: 8,
+    borderRadius: wp('2%'),
   },
   scheduleText: {
     color: '#4CAF50',
-    fontSize: 14,
+    fontSize: wp('3.5%'),
   },
   modalContainer: {
     flex: 1,
@@ -482,17 +497,17 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#55423d',
     height: '100%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
+    borderTopLeftRadius: wp('5%'),
+    borderTopRightRadius: wp('5%'),
+    padding: wp('4%'),
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hp('2%'),
   },
   closeButton: {
-    padding: 8,
+    padding: wp('2%'),
   },
   titleContainer: {
     flexDirection: 'row',
@@ -505,25 +520,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalTitle: {
-    marginLeft: 8,
-    fontSize: 20,
+    marginLeft: wp('2%'),
+    fontSize: wp('5%'),
     color: 'white',
   },
   titleInput: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 8,
-    borderRadius: 8,
-    marginLeft: 8,
-    fontSize: 20,
+    padding: wp('2%'),
+    borderRadius: wp('2%'),
+    marginLeft: wp('2%'),
+    fontSize: wp('4%'),
   },
   editTitleButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
   },
   saveTitleButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
   },
   resourcesList: {
     flex: 1,
@@ -531,14 +546,14 @@ const styles = StyleSheet.create({
   resourceItem: {
     flexDirection: 'row',
     backgroundColor: '#121629',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
+    marginBottom: hp('1%'),
     alignItems: 'center',
   },
   resourceNumber: {
     color: '#fff',
-    marginRight: 8,
+    marginRight: wp('2%'),
     fontWeight: 'bold',
   },
   resourceText: {
@@ -546,7 +561,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   removeButton: {
-    padding: 8,
+    padding: wp('2%'),
   },
   modalActions: {
     flexDirection: 'row',
@@ -561,63 +576,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#232946',
     color: '#fff',
-    padding: 8,
-    borderRadius: 4,
-    marginRight: 8,
+    padding: wp('2%'),
+    borderRadius: wp('1%'),
+    marginRight: wp('2%'),
   },
   resourceActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   resourceActionButton: {
-    padding: 4,
-    marginLeft: 8,
+    padding: wp('1%'),
+    marginLeft: wp('2%'),
   },
   saveResourceButton: {
-    padding: 4,
+    padding: wp('1%'),
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#121629',
-    borderRadius: 8,
-    marginTop: 16,
-    paddingHorizontal: 12,
+    borderRadius: wp('2%'),
+    marginTop: hp('2%'),
+    paddingHorizontal: wp('3%'),
   },
   searchInput: {
     flex: 1,
     color: '#fff',
-    padding: 12,
-    fontSize: 16,
+    padding: wp('3%'),
+    fontSize: wp('4%'),
   },
   searchIcon: {
-    marginLeft: 8,
+    marginLeft: wp('2%'),
   },
   searchResultsContainer: {
     backgroundColor: '#121629',
-    marginHorizontal: 16,
-    borderRadius: 8,
-    maxHeight: 200,
-    marginTop: 16,
+    marginHorizontal: wp('4%'),
+    borderRadius: wp('2%'),
+    maxHeight: hp('25%'),
+    marginTop: hp('2%'),
   },
   searchResults: {
-    padding: 8,
+    padding: wp('2%'),
   },
   searchResultItem: {
-    padding: 12,
+    padding: wp('3%'),
     borderBottomWidth: 1,
     borderBottomColor: '#232946',
   },
   searchResultTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: wp('4%'),
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: hp('1%'),
   },
   searchResultResource: {
     color: '#b8c1ec',
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: wp('3.5%'),
+    marginLeft: wp('2%'),
   },
   highlightedText: {
     backgroundColor: '#FFD700',
