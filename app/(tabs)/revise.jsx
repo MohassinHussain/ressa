@@ -446,7 +446,7 @@ export default function ReviseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121629',
+    backgroundColor: '#121212',
   },
   loadingContainer: {
     flex: 1,
@@ -469,8 +469,8 @@ const styles = StyleSheet.create({
   topicCard: {
     padding: wp('4%'),
     borderRadius: wp('2%'),
-    backgroundColor: '#232946',
-    borderWidth: 1,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 0.4,
     borderColor: '#eee',
     marginBottom: hp('2%'),
   },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   scheduleInfo: {
     marginVertical: hp('1%'),
     padding: wp('2%'),
-    backgroundColor: '#121629',
+    backgroundColor: '#121212',
     borderRadius: wp('2%'),
   },
   scheduleText: {
@@ -491,11 +491,11 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#55423d',
+    backgroundColor: '#121212',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#55423d',
+    backgroundColor: '#1E1E1E',
     height: '100%',
     borderTopLeftRadius: wp('5%'),
     borderTopRightRadius: wp('5%'),
@@ -521,16 +521,17 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     marginLeft: wp('2%'),
-    fontSize: wp('5%'),
+    fontSize: wp('4.2%'),
     color: 'white',
   },
   titleInput: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '1E1E1E ',
     padding: wp('2%'),
     borderRadius: wp('2%'),
     marginLeft: wp('2%'),
     fontSize: wp('4%'),
+    color: '#fff',
   },
   editTitleButton: {
     padding: wp('2%'),
@@ -545,11 +546,22 @@ const styles = StyleSheet.create({
   },
   resourceItem: {
     flexDirection: 'row',
-    backgroundColor: '#121629',
+    backgroundColor: '#121212',
     padding: wp('3%'),
     borderRadius: wp('2%'),
     marginBottom: hp('1%'),
     alignItems: 'center',
+    borderWidth: 0.4,
+    borderColor: '#b8c1ec',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+    flexWrap: 'wrap',
   },
   resourceNumber: {
     color: '#fff',
@@ -594,7 +606,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121629',
+    backgroundColor: '#1E1E1E',
     borderRadius: wp('2%'),
     marginTop: hp('2%'),
     paddingHorizontal: wp('3%'),
@@ -602,8 +614,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: '#fff',
-    padding: wp('3%'),
-    fontSize: wp('4%'),
+    padding: wp('2%'),
+    fontSize: wp('3%'),
   },
   searchIcon: {
     marginLeft: wp('2%'),
@@ -625,7 +637,7 @@ const styles = StyleSheet.create({
   },
   searchResultTitle: {
     color: '#fff',
-    fontSize: wp('4%'),
+    fontSize: wp('3%'),
     fontWeight: 'bold',
     marginBottom: hp('1%'),
   },

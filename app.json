@@ -17,7 +17,10 @@
         "backgroundColor": "#000000",
         "borderRadius": 20
       },
-      "package": "com.mohassin.ressa"
+      "package": "com.mohassin.ressa",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,7 +34,6 @@
           "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
       ],
-
       "expo-router",
       [
         "expo-splash-screen",
@@ -52,7 +54,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "856159e7-3122-408a-943b-66e1b6641242"
+        "projectId": "9f974388-6a8c-47ba-a67d-78f774e5140d"
       }
     }
   }

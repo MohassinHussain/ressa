@@ -1,6 +1,6 @@
-import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, Button, ScrollView, ActivityIndicator, Alert, Linking, Share, Image, RefreshControl, Animated } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, Button, ScrollView, ActivityIndicator, Alert, Linking, Share, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -61,13 +61,10 @@ export default function HomeScreen() {
   const [aiResponseData, setAIResponseData] = useState(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
-  const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
   const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   days[0] = 'None';
   const months = [
-    'None', 'January', 'February', 'March', 'April', 'May', 'June',
+    'None','January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() + i).toString());
@@ -78,38 +75,6 @@ export default function HomeScreen() {
   hours[0] = 'None';
   const amPmOptions = ['AM', 'PM'];
   hours[0] = 'None';
-
-  const taglines = [
-    "Organize, Save, Learn.",
-    "Smart Resource Management, Made Simple.",
-    "Keep your knowledge in check — with Ressa.",
-    "Effortless Resource Tracking.",
-    "Your Digital Resource Library."
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        })
-      ]).start();
-
-      setCurrentTaglineIndex((prevIndex) =>
-        prevIndex === taglines.length - 1 ? 0 : prevIndex + 1
-      );
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   // Load data from AsyncStorage on initial render
   useEffect(() => {
     loadData();
@@ -364,6 +329,19 @@ export default function HomeScreen() {
     );
   };
 
+  // const isUrl = (str) => {
+  //   const match = str.match(/https?:\/\/[^\s]+/) || str.match(/www\.[^\s]+/) || str.match(/[^\s]+\.[^\s]+/);
+  //   if (!match) return false;
+
+  //   try {
+  //     new URL(match[0]);
+  //     return true;
+  //   } catch {
+  //     return false;
+  //   }
+  // };
+
+
   const isUrl = (str) => {
     const domainExtensions = ['.com', '.org', '.net', '.io', '.edu', '.gov', '.me', '.co', '.app'];
     const hasLikelyDomain = domainExtensions.some(ext => str.includes(ext)) || str.includes('www.') || str.includes('https://') || str.includes('http://');
@@ -386,6 +364,7 @@ export default function HomeScreen() {
       return false;
     }
   };
+
 
   const handleResourceAction = (resource) => {
     if (isUrl(resource)) {
@@ -558,6 +537,7 @@ export default function HomeScreen() {
     }
   };
 
+// add image as resource
   const handleAddImageResource = async () => {
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
@@ -580,7 +560,7 @@ export default function HomeScreen() {
           }
           return topic;
         });
-
+        
         setTopics(updatedTopics);
         setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
         await saveData(updatedTopics);
@@ -591,6 +571,7 @@ export default function HomeScreen() {
     }
   };
 
+  // Add this function to check if a resource is an image
   const isImage = (resource) => {
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
     return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
@@ -611,21 +592,40 @@ export default function HomeScreen() {
     );
   }
 
+
+  // const handleFetchDataButton = async () => {
+  //   try {
+  //     const response = await fetch('http://192.168.1.100:5000/get-data', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({ topic: 'Learn Things' })
+  //     });
+  
+  //     const data = await response.json();
+  //     console.log('Response from Flask:', data);
+  //   } catch (error) {
+  //     console.error('Error:', error);
+  //   }
+  
+  // };
+
   const handleFetchButton = async () => {
     try {
       console.log("Clicked");
       setShowAIResponse(true); // Show modal first
       setIsLoadingAI(true);
-
+      
       const form = new FormData();
       form.append("topicName", selectedTopic?.title || "Learn Things");
-
-      const res = await axios.post("https://ressa-model.onrender.com/get-resources", form, {
-        headers: {
+  
+      const res = await axios.post("http://192.168.1.8:5000/", form, {
+        headers: {  
           'Content-Type': 'multipart/form-data',
         },
       });
-
+  
       // console.log("Response from backend", JSON.stringify(res.data, null, 2));
       setAIResponseData(res.data);
     } catch (error) {
@@ -808,12 +808,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <ThemedText type="title">Ressa</ThemedText>
-        <View style={styles.taglineContainer}>
-          <Animated.Text style={[styles.tagline, { opacity: fadeAnim }]}>
-            {taglines[currentTaglineIndex]}
-          </Animated.Text>
-        </View>
+        <ThemedText type="title">My Learning Resources</ThemedText>
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
@@ -828,7 +823,7 @@ export default function HomeScreen() {
 
       {isSearching && searchResults.length > 0 && (
         <View style={styles.searchResultsContainer}>
-          <ScrollView
+          <ScrollView 
             style={styles.searchResults}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -858,7 +853,7 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.content}>
-        <ScrollView
+        <ScrollView 
           style={styles.topicsContainer}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -917,29 +912,53 @@ export default function HomeScreen() {
         animationType="slide"
         transparent={true}
         onRequestClose={() => setIsAddingTopic(false)}>
-        <View style={styles.addTopicModalContainer}>
-          <View style={styles.addTopicModalContent}>
-            <ThemedText type="title" style={styles.addTopicModalTitle}>
-              Add New Topic
-            </ThemedText>
-            <TextInput
-              style={styles.addTopicInput}
-              placeholder="Enter topic title..."
-              value={newTopicTitle}
-              onChangeText={setNewTopicTitle}
-              autoFocus
-              onSubmitEditing={handleAddTopic}
-              placeholderTextColor="#fff"
-            />
-            <TouchableOpacity
-              style={styles.addTopicButton}
-              onPress={handleAddTopic}>
-              <ThemedText style={styles.addTopicButtonText}>Add Topic</ThemedText>
-            </TouchableOpacity>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setIsAddingTopic(false)}>
+                <AntDesign name="caretleft" size={28} color="white" />
+              </TouchableOpacity>
+              <View style={styles.titleEditContainer}>
+                <TextInput
+                  style={styles.titleInput}
+                  placeholder="Enter topic title..."
+                  value={newTopicTitle}
+                  onChangeText={setNewTopicTitle}
+                  autoFocus
+                  onSubmitEditing={handleAddTopic}
+                />
+                <TouchableOpacity
+                  style={styles.saveTitleButton}
+                  onPress={handleAddTopic}>
+                  <MaterialIcons name="check" size={hp(2)} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+
+
+            <View style={styles.newResourceContainer}>
+              <TextInput
+                style={styles.newResourceInput}
+                placeholder="Add your first resource..."
+                value={newResource}
+                onChangeText={setNewResource}
+                onSubmitEditing={handleAddResource}
+              />
+              <TouchableOpacity
+                style={styles.addResourceButton}
+                onPress={handleAddResource}>
+                <Entypo name="add-to-list" size={hp(2)} color="black" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaButton}>
+                <MaterialIcons name="perm-media" size={hp(2)} color="black" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
-
 
       {/* Edit Topic Modal */}
       <Modal
@@ -1005,7 +1024,7 @@ export default function HomeScreen() {
             </View>
 
 
-            {/* Resource items */}
+{/* Resource items */}
             <ScrollView style={styles.resourcesList}>
               {selectedTopic?.resources.map((resource, index) => {
                 if (typeof resource === 'object' && resource.type === 'collapsible') {
@@ -1060,10 +1079,10 @@ export default function HomeScreen() {
                         <TouchableOpacity
                           style={styles.resourceActionButton}
                           onPress={() => handleResourceAction(resource)}>
-                          <MaterialIcons
-                            name={isUrl(resource) ? "link" : isImage(resource) ? "image" : "edit"}
-                            size={20}
-                            color="#b8c1ec"
+                          <MaterialIcons 
+                            name={isUrl(resource) ? "link" : isImage(resource) ? "image" : "edit"} 
+                            size={20} 
+                            color="#b8c1ec" 
                           />
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -1077,35 +1096,34 @@ export default function HomeScreen() {
                 }
               })}
             </ScrollView>
-
+            
             {/* add media note: DONE */}
             {/* <View>
               <Text style={{ color: '#b8c1ec', fontSize: hp('1.1%') }}>Note: Add Media feature coming soon!</Text>
             </View> */}
             <View style={styles.newResourceContainer}>
               <TextInput
-                multiline
-                numberOfLines={15}
-                // maxLength={700}
+              multiline
+              numberOfLines={15}
+              // maxLength={700}
                 style={styles.newResourceInput}
                 placeholder="Add new resource..."
                 value={newResource}
                 onChangeText={setNewResource}
                 onSubmitEditing={handleAddResource}
-                placeholderTextColor="#b8c1ec"
               />
               <TouchableOpacity
                 style={styles.addResourceButton}
                 onPress={handleAddResource}>
-                <Entypo name="add-to-list" size={hp(2.5)} color="#B8C1EC" />
+                <Entypo name="add-to-list" size={hp(2)} color="black" />
               </TouchableOpacity>
 
-              {/* add image as resource */}
+{/* add image as resource */}
 
-              <TouchableOpacity style={styles.mediaButton}
+              <TouchableOpacity style={styles.mediaButton} 
                 onPress={handleAddImageResource}
               >
-                <MaterialIcons name="perm-media" size={hp(2.5)} color="#B8C1EC" />
+                <MaterialIcons name="perm-media" size={hp(2)} color="black" />
               </TouchableOpacity>
             </View>
           </View>
@@ -1147,7 +1165,7 @@ export default function HomeScreen() {
               </View>
             </View>
             <View>
-
+              
             </View>
             <TouchableOpacity
               style={[
@@ -1189,12 +1207,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#232946',
+    backgroundColor: '#1E1E1E',
   },
   header: {
     padding: wp('4%'),
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#232946',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -1206,15 +1224,16 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#fff',
+    color: '#FFFFFF',
     padding: wp('2%'),
     fontSize: wp('3%'),
   },
   searchIcon: {
     marginLeft: wp('2%'),
+    color: '#B8C1EC',
   },
   searchResultsContainer: {
-    backgroundColor: '#121629',
+    backgroundColor: '#1E1E1E',
     marginHorizontal: wp('4%'),
     borderRadius: wp('2%'),
     maxHeight: hp('25%'),
@@ -1229,23 +1248,24 @@ const styles = StyleSheet.create({
     borderBottomColor: '#232946',
   },
   searchResultTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
     fontWeight: 'bold',
     marginBottom: hp('1%'),
   },
   searchResultResource: {
-    color: '#b8c1ec',
+    color: '#B8C1EC',
     fontSize: wp('3.5%'),
     marginLeft: wp('2%'),
   },
   highlightedText: {
-    backgroundColor: '#FFD700',
-    color: '#000',
+    backgroundColor: '#4CAF50',
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
     padding: wp('4%'),
+    backgroundColor: '#121212',
   },
   topicsContainer: {
     gap: hp('1.5%'),
@@ -1260,9 +1280,9 @@ const styles = StyleSheet.create({
     width: wp('70%'),
     padding: wp('4%'),
     borderRadius: wp('2%'),
-    backgroundColor: '#1E1E1E',
-    borderWidth: 0.4,
-    borderColor: '#b8c1ec',
+    backgroundColor: '#232946',
+    borderWidth: 1,
+    borderColor: '#2196F3',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1283,64 +1303,21 @@ const styles = StyleSheet.create({
   addButton: {
     marginTop: hp('2%'),
     padding: wp('4%'),
-    backgroundColor: '#121212',
+    backgroundColor: '#2196F3',
     borderRadius: wp('2%'),
     alignItems: 'center',
-    // borderWidth: 1,
-    // borderColor: '#b8c1ec',
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  addTopicModalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  addTopicModalContent: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 15,
-    padding: 20,
-    width: '80%',
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  addTopicModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 20,
-  },
-  addTopicInput: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    padding: 15,
-    width: '100%',
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  addTopicButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  addTopicButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1E1E1E ',
+    backgroundColor: '#1E1E1E',
     height: '100%',
     borderTopLeftRadius: wp('2.5%'),
     borderTopRightRadius: wp('2.5%'),
@@ -1367,17 +1344,16 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginLeft: wp('2%'),
     fontSize: wp('4.2%'),
-    color: 'white',
+    color: '#FFFFFF',
   },
   titleInput: {
     flex: 1,
-    backgroundColor: '1E1E1E ',
+    backgroundColor: '#232946',
+    color: '#FFFFFF',
     padding: wp('2%'),
     borderRadius: wp('2%'),
     marginLeft: wp('2%'),
     fontSize: wp('4%'),
-    color: '#fff',
-
   },
   editTitleButton: {
     padding: wp('2%'),
@@ -1392,31 +1368,22 @@ const styles = StyleSheet.create({
   },
   resourceItem: {
     flexDirection: 'row',
-    backgroundColor: '#121212',
+    backgroundColor: '#232946',
     padding: wp('3%'),
     borderRadius: wp('2%'),
     marginBottom: hp('1%'),
     alignItems: 'center',
-    borderWidth: 0.4,
-    borderColor: '#b8c1ec',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 2,
-    flexWrap: 'wrap',
+    borderWidth: 1,
+    borderColor: '#2196F3',
   },
   resourceNumber: {
-    color: '#fff',
+    color: '#FFFFFF',
     marginRight: wp('2%'),
     fontWeight: 'bold',
     width: wp('5%'),
   },
   resourceText: {
-    color: '#fff',
+    color: '#FFFFFF',
     flex: 1,
     marginRight: wp('2%'),
     flexShrink: 1,
@@ -1424,29 +1391,27 @@ const styles = StyleSheet.create({
   newResourceContainer: {
     flexDirection: 'row',
     marginTop: hp('2%'),
-    // marginBottom: hp('2%'),
-    width: wp('95%'),
+    marginBottom: hp('2%'),
   },
   newResourceInput: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#232946',
+    color: '#FFFFFF',
     padding: wp('3%'),
     borderRadius: wp('2%'),
     marginRight: wp('2%'),
-    fontSize: wp('3%'),
-    color: '#fff',
   },
   addResourceButton: {
-    // backgroundColor: '#fff',
-    padding: wp('4%'),
+    backgroundColor: '#2196F3',
+    padding: wp('3%'),
     borderRadius: wp('2%'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   mediaButton: {
-    // width: wp('10%'),
-    // backgroundColor: '#fff',
-    padding: wp('4%'),
+    width: wp('10%'),
+    backgroundColor: '#2196F3',
+    padding: wp('3%'),
     borderRadius: wp('2%'),
     marginLeft: wp('1%'),
     justifyContent: 'center',
@@ -1457,13 +1422,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#232946',
     borderRadius: wp('2%'),
     borderWidth: 1,
-    borderColor: '#b8c1ec',
+    borderColor: '#2196F3',
   },
   scheduleInputContainer: {
     padding: wp('4%'),
   },
   scheduleLabel: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
     marginBottom: hp('1%'),
   },
@@ -1480,7 +1445,7 @@ const styles = StyleSheet.create({
     margin: wp('4%'),
   },
   scheduleButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
     fontWeight: 'bold',
   },
@@ -1495,17 +1460,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#121629',
+    backgroundColor: '#232946',
     padding: wp('3%'),
     borderRadius: wp('2%'),
   },
   dropdownButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
   },
   dropdownList: {
     maxHeight: hp('30%'),
-    backgroundColor: '#121629',
+    backgroundColor: '#232946',
     borderRadius: wp('2%'),
     marginTop: hp('6%'),
     position: 'absolute',
@@ -1515,10 +1480,10 @@ const styles = StyleSheet.create({
   dropdownItem: {
     padding: wp('3%'),
     borderBottomWidth: 1,
-    borderBottomColor: '#232946',
+    borderBottomColor: '#1E1E1E',
   },
   dropdownItemText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
   },
   topicActions: {
@@ -1532,7 +1497,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#232946',
     borderRadius: wp('2%'),
     borderWidth: 1,
-    borderColor: '#ff4444',
+    borderColor: '#FF4444',
   },
   resourceEditContainer: {
     flex: 1,
@@ -1543,7 +1508,7 @@ const styles = StyleSheet.create({
   resourceEditInput: {
     flex: 1,
     backgroundColor: '#232946',
-    color: '#fff',
+    color: '#FFFFFF',
     padding: wp('2%'),
     borderRadius: wp('1%'),
     marginRight: wp('2%'),
@@ -1560,7 +1525,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#232946',
     borderRadius: wp('1%'),
     borderWidth: 1,
-    borderColor: '#b8c1ec',
+    borderColor: '#2196F3',
   },
   saveResourceButton: {
     padding: wp('1%'),
@@ -1586,10 +1551,9 @@ const styles = StyleSheet.create({
     borderRadius: wp('2%'),
     padding: wp('2%'),
     marginBottom: hp('1%'),
-
   },
   collapsibleTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('4%'),
     fontWeight: 'bold',
   },
@@ -1606,24 +1570,24 @@ const styles = StyleSheet.create({
   card: {
     padding: wp('3%'),
     borderBottomWidth: 1,
-    borderBottomColor: '#232946',
+    borderBottomColor: '#1E1E1E',
   },
   cardTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
     fontWeight: 'bold',
   },
   cardSummary: {
-    color: '#b8c1ec',
+    color: '#B8C1EC',
     fontSize: wp('3%'),
   },
   cardScore: {
-    color: '#fff',
+    color: '#4CAF50',
     fontSize: wp('3%'),
     fontWeight: 'bold',
   },
   cardTime: {
-    color: '#b8c1ec',
+    color: '#B8C1EC',
     fontSize: wp('3%'),
   },
   imageCard: {
@@ -1636,7 +1600,7 @@ const styles = StyleSheet.create({
     borderRadius: wp('2%'),
   },
   imageTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: wp('3%'),
     fontWeight: 'bold',
   },
@@ -1648,16 +1612,5 @@ const styles = StyleSheet.create({
   },
   deleteCollapsibleButton: {
     padding: wp('2%'),
-  },
-  taglineContainer: {
-    marginTop: hp(1),
-    // marginBottom: hp(2),
-  },
-  tagline: {
-    color: '#b8c1ec',
-    fontStyle: 'italic',
-    fontSize: hp(1.5),
-    // textAlign: '',
-    // marginVertical: hp(0.5),
   },
 }); 
