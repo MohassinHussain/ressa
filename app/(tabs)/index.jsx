@@ -17,9 +17,12 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import axios from 'axios';
 import AIResponseModal from '@/Modals/AIResponseModal';
+import * as DocumentPicker from 'expo-document-picker';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { Platform } from 'react-native';
 
 const STORAGE_KEY = '@learning_resources';
-const SCHEDULED_TOPICS_KEY = '@scheduled_topics';
+const SCHEDULED_TOPICS_KEY = '@scheduled_topics'; 
 
 export default function HomeScreen() {
 
@@ -560,22 +563,37 @@ export default function HomeScreen() {
 
   const handleAddImageResource = async () => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        // mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        // 'videos' causes memory increase so we're only using images
-        mediaTypes: ['images'],
-        // allowsEditing: true,
-        // aspect: [4, 3],
-        quality: 1,
+      let result = await DocumentPicker.getDocumentAsync({
+        multiple: true,
+        type: [
+          'image/*',
+          'video/*',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/plain',
+          'application/rtf'
+        ]
       });
 
       if (!result.canceled && selectedTopic) {
-        const imageUri = result.assets[0].uri;
+        const documents = result.assets;
         const updatedTopics = topics.map(topic => {
           if (topic.id === selectedTopic.id) {
             return {
               ...topic,
-              resources: [...topic.resources, imageUri]
+              resources: [
+                ...topic.resources,
+                ...documents.map(doc => ({
+                  type: 'document',
+                  uri: doc.uri,
+                  name: doc.name,
+                  mimeType: doc.mimeType,
+                  size: doc.size
+                }))
+              ]
             };
           }
           return topic;
@@ -586,14 +604,34 @@ export default function HomeScreen() {
         await saveData(updatedTopics);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to add image');
+      console.error('Error picking documents:', error);
+      Alert.alert('Error', 'Failed to add documents');
     }
   };
 
   const isImage = (resource) => {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-    return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
+    if (typeof resource === 'object' && resource.type === 'document') {
+      return resource.mimeType.startsWith('image/');
+    }
+    if (typeof resource === 'string') {
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+      return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
+    }
+    return false;
+  };
+
+  const isDocument = (resource) => {
+    return typeof resource === 'object' && resource.type === 'document';
+  };
+
+  const getDocumentIcon = (mimeType) => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'videocam';
+    if (mimeType === 'application/pdf') return 'picture-as-pdf';
+    if (mimeType.includes('word')) return 'description';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'table-chart';
+    if (mimeType === 'text/plain') return 'text-fields';
+    return 'insert-drive-file';
   };
 
   const onRefresh = React.useCallback(() => {
@@ -805,6 +843,45 @@ export default function HomeScreen() {
     );
   };
 
+  const openDocument = async (uri, mimeType) => {
+    try {
+      if (Platform.OS === 'android') {
+        // Create a public directory path
+        const publicDir = FileSystem.documentDirectory + 'public/';
+        await FileSystem.makeDirectoryAsync(publicDir, { intermediates: true });
+        
+        // Get the file name from the URI
+        const fileName = uri.split('/').pop();
+        const publicPath = publicDir + fileName;
+        
+        // Copy the file to public directory
+        await FileSystem.copyAsync({
+          from: uri,
+          to: publicPath
+        });
+
+        // Create a content URI
+        const contentUri = await FileSystem.getContentUriAsync(publicPath);
+
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          type: mimeType,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
+      } else {
+        const supported = await Linking.canOpenURL(uri);
+        if (supported) {
+          await Linking.openURL(uri);
+        } else {
+          Alert.alert('Error', 'No app available to open this document');
+        }
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert('Error', 'Failed to open document');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -1008,7 +1085,51 @@ export default function HomeScreen() {
             {/* Resource items */}
             <ScrollView style={styles.resourcesList}>
               {selectedTopic?.resources.map((resource, index) => {
-                if (typeof resource === 'object' && resource.type === 'collapsible') {
+                if (typeof resource === 'object' && resource.type === 'document') {
+                  return (
+                    <View key={index} style={styles.resourceItem}>
+                      <Text style={styles.resourceNumber}>{index + 1}.</Text>
+                      <Collapsible title={resource.name}>
+                        <View style={styles.documentContainer}>
+                          {resource.mimeType.startsWith('image/') ? (
+                            <Image
+                              source={{ uri: resource.uri }}
+                              style={styles.documentImage}
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <>
+                              <MaterialIcons 
+                                name={getDocumentIcon(resource.mimeType)} 
+                                size={hp(4)} 
+                                color="#b8c1ec" 
+                              />
+                              <View style={styles.documentInfo}>
+                                <Text style={styles.documentName}>{resource.name}</Text>
+                                <Text style={styles.documentSize}>
+                                  {(resource.size / 1024 / 1024).toFixed(2)} MB
+                                </Text>
+                              </View>
+                              <TouchableOpacity 
+                                style={styles.documentActionButton}
+                                onPress={() => openDocument(resource.uri, resource.mimeType)}
+                              >
+                                <MaterialIcons name="open-in-new" size={hp(2)} color="#b8c1ec" />
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+                      </Collapsible>
+                      <View style={styles.resourceActions}>
+                        <TouchableOpacity
+                          style={styles.resourceActionButton}
+                          onPress={() => handleDeleteResource(resource)}>
+                          <MaterialIcons name="delete" size={20} color="#ff4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                } else if (typeof resource === 'object' && resource.type === 'collapsible') {
                   return renderCollapsibleResource(resource, index);
                 } else {
                   return (
@@ -1043,7 +1164,6 @@ export default function HomeScreen() {
                               />
                             </Collapsible>
                           ) : (
-                            // <Text style={styles.resourceText}>{resource}</Text>
                             <View>
                               {isUrl(resource) ? (
                                 <TouchableOpacity onPress={() => Linking.openURL(resource)}>
@@ -1659,5 +1779,36 @@ const styles = StyleSheet.create({
     fontSize: hp(1.5),
     // textAlign: '',
     // marginVertical: hp(0.5),
+  },
+  documentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('3%'),
+    backgroundColor: '#232946',
+    borderRadius: wp('2%'),
+    marginTop: hp('1%'),
+  },
+  documentInfo: {
+    flex: 1,
+    marginLeft: wp('2%'),
+  },
+  documentName: {
+    color: '#fff',
+    fontSize: wp('3%'),
+  },
+  documentSize: {
+    color: '#b8c1ec',
+    fontSize: wp('2.5%'),
+    marginTop: hp('0.5%'),
+  },
+  documentActionButton: {
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
+  },
+  documentImage: {
+    width: '100%',
+    height: hp('20%'),
+    borderRadius: wp('2%'),
+    backgroundColor: '#232946',
   },
 }); 
