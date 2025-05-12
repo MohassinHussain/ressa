@@ -4,10 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import * as IntentLauncher from "expo-intent-launcher";
+import { Platform } from "react-native";
+
 import Entypo from '@expo/vector-icons/Entypo';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useNavigation } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { Collapsible } from '@/components/Collapsible';
 
 const SCHEDULED_TOPICS_KEY = '@scheduled_topics';
 const STORAGE_KEY = '@learning_resources';
@@ -44,9 +50,11 @@ export default function ReviseScreen() {
       setIsSearching(true);
       const results = scheduledTopics.filter(topic => 
         topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.resources.some(resource => 
-          resource.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+        topic.resources.some(resource => {
+          const resourceText = renderResource(resource);
+          return typeof resourceText === 'string' && 
+            resourceText.toLowerCase().includes(searchQuery.toLowerCase());
+        })
       );
       setSearchResults(results);
     } else {
@@ -196,6 +204,54 @@ export default function ReviseScreen() {
     }
   };
 
+  const handleViewResource = async (resource) => {
+    try {
+      // Handle document type resources (uploaded files)
+      if (typeof resource === 'object' && resource.type === 'document') {
+        if (Platform.OS === 'android') {
+          // For Android, we need to copy the file to a public directory first
+          const publicDir = FileSystem.documentDirectory + 'downloads/';
+          await FileSystem.makeDirectoryAsync(publicDir, { intermediates: true });
+
+          // Get the filename from the resource
+          const fileName = resource.name || 'download.jpg';
+          const publicPath = publicDir + fileName;
+
+          // Copy the file to public directory
+          await FileSystem.copyAsync({
+            from: resource.uri,
+            to: publicPath
+          });
+
+          // Get a content URI that can be shared
+          const contentUri = await FileSystem.getContentUriAsync(publicPath);
+
+          // Open with system viewer/browser
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1,  // FLAG_GRANT_READ_URI_PERMISSION
+            type: resource.mimeType
+          });
+        } else {
+          // For iOS, we can share directly
+          await Sharing.shareAsync(resource.uri);
+        }
+      } else {
+        // For URL type resources, open in browser
+        const canOpen = await Linking.canOpenURL(resource);
+        if (canOpen) {
+          await Linking.openURL(resource);
+        } else {
+          Alert.alert('Error', 'Cannot open this URL in browser');
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to open file. Please try again.');
+    }
+  };
+
+
   const handleDeleteResource = async (resource) => {
     Alert.alert(
       "Delete Resource",
@@ -247,6 +303,77 @@ export default function ReviseScreen() {
     setRefreshing(false);
   }, []);
 
+  const renderResource = (resource) => {
+    if (typeof resource === 'object') {
+      if (resource.type === 'document') {
+        return resource.name;
+      } else if (resource.type === 'collapsible') {
+        return resource.title;
+      }
+    }
+    return resource;
+  };
+
+  const isImage = (resource) => {
+    if (typeof resource === 'object' && resource.type === 'document') {
+      return resource.mimeType.startsWith('image/');
+    }
+    if (typeof resource === 'string') {
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+      return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
+    }
+    return false;
+  };
+
+  const getDocumentIcon = (mimeType) => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'videocam';
+    if (mimeType === 'application/pdf') return 'picture-as-pdf';
+    if (mimeType.includes('word')) return 'description';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'table-chart';
+    if (mimeType === 'text/plain') return 'text-fields';
+    return 'insert-drive-file';
+  };
+
+  const openDocument = async (uri, mimeType) => {
+    try {
+      if (Platform.OS === 'android') {
+        // Create a public directory path
+        const publicDir = FileSystem.documentDirectory + 'public/';
+        await FileSystem.makeDirectoryAsync(publicDir, { intermediates: true });
+
+        // Get the file name from the URI
+        const fileName = uri.split('/').pop();
+        const publicPath = publicDir + fileName;
+
+        // Copy the file to public directory
+        await FileSystem.copyAsync({
+          from: uri,
+          to: publicPath,
+        });
+
+        // Create a content URI
+        const contentUri = await FileSystem.getContentUriAsync(publicPath);
+
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          type: mimeType,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
+      } else {
+        const supported = await Linking.canOpenURL(uri);
+        if (supported) {
+          await Linking.openURL(uri);
+        } else {
+          Alert.alert('Error', 'No app available to open this document');
+        }
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert('Error', 'Failed to open document');
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -285,13 +412,15 @@ export default function ReviseScreen() {
                 <Text style={styles.searchResultTitle}>
                   {highlightText(topic.title, searchQuery)}
                 </Text>
-                {topic.resources.map((resource, index) => (
-                  resource.toLowerCase().includes(searchQuery.toLowerCase()) && (
+                {topic.resources.map((resource, index) => {
+                  const resourceText = renderResource(resource);
+                  return typeof resourceText === 'string' &&
+                    resourceText.toLowerCase().includes(searchQuery.toLowerCase()) && (
                     <Text key={index} style={styles.searchResultResource}>
-                      {highlightText(resource, searchQuery)}
+                      {highlightText(resourceText, searchQuery)}
                     </Text>
-                  )
-                ))}
+                  );
+                })}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -375,11 +504,11 @@ export default function ReviseScreen() {
                     {selectedTopic?.title}
                   </ThemedText>
                   <View style={styles.modalActions}>
-                    <TouchableOpacity 
+                    {/* <TouchableOpacity 
                       style={styles.editTitleButton}
                       onPress={startEditing}>
                       <MaterialIcons name="edit" size={24} color="white" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity 
                       style={styles.removeButton}
                       onPress={() => handleRemoveTopic(selectedTopic)}>
@@ -403,9 +532,9 @@ export default function ReviseScreen() {
                   {editingResource === resource ? (
                     <View style={styles.resourceEditContainer}>
                       <TextInput
-                      multiline
-                      numberOfLines={8}
-                      maxLength={700}
+                        multiline
+                        numberOfLines={8}
+                        maxLength={700}
                         style={styles.resourceEditInput}
                         value={editedResource}
                         onChangeText={setEditedResource}
@@ -419,14 +548,62 @@ export default function ReviseScreen() {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <Text style={styles.resourceText}>{resource}</Text>
+                    typeof resource === 'object' && resource.type === 'document' ? (
+                      resource.mimeType.startsWith('image/') ? (
+                        <View style={styles.imageContainer}>
+                          <Collapsible title={resource.name}>
+                            <Image
+                              source={{ uri: resource.uri }}
+                              style={styles.resourceImage}
+                              resizeMode="contain"
+                            />
+                          </Collapsible>
+                        </View>
+                      ) : (
+                        <View style={styles.documentContainer}>
+                          <MaterialIcons 
+                            name={getDocumentIcon(resource.mimeType)}
+                            size={24} 
+                            color="#b8c1ec" 
+                          />
+                          <View style={styles.documentInfo}>
+                            <Text style={styles.documentName}>{resource.name}</Text>
+                            <Text style={styles.documentSize}>
+                              {(resource.size / 1024 / 1024).toFixed(2)} MB
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.documentActionButton}
+                            onPress={() => openDocument(resource.uri, resource.mimeType)}
+                          >
+                            <MaterialIcons
+                              name="open-in-new"
+                              size={20}
+                              color="#b8c1ec"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      )
+                    ) : isImage(resource) ? (
+                      <View style={styles.imageContainer}>
+                        <Collapsible title="View Image">
+                          <Image
+                            source={{ uri: resource }}
+                            style={styles.resourceImage}
+                            resizeMode="contain"
+                          />
+                        </Collapsible>
+                      </View>
+                    ) : (
+                      <Text style={styles.resourceText}>{renderResource(resource)}</Text>
+                    )
                   )}
                   <View style={styles.resourceActions}>
                     <TouchableOpacity 
                       style={styles.resourceActionButton}
                       onPress={() => handleResourceAction(resource)}>
                       <MaterialIcons 
-                        name={isUrl(resource) ? "link" : "edit"} 
+                        name={isUrl(resource) ? "link" : isImage(resource) ? "visibility" : ""} 
                         size={20} 
                         color="#b8c1ec" 
                       />
@@ -653,5 +830,41 @@ const styles = StyleSheet.create({
   highlightedText: {
     backgroundColor: '#FFD700',
     color: '#000',
+  },
+  documentContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('3%'),
+    backgroundColor: '#232946',
+    borderRadius: wp('2%'),
+    marginTop: hp('1%'),
+  },
+  documentInfo: {
+    flex: 1,
+    marginLeft: wp('2%'),
+  },
+  documentName: {
+    color: '#fff',
+    fontSize: wp('3%'),
+  },
+  documentSize: {
+    color: '#b8c1ec',
+    fontSize: wp('2.5%'),
+    marginTop: hp('0.5%'),
+  },
+  documentActionButton: {
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
+  },
+  imageContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  resourceImage: {
+    width: '100%',
+    height: hp('30%'),
+    borderRadius: wp('2%'),
+    marginTop: hp('1%'),
   },
 }); 

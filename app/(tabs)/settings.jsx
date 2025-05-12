@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Updates from 'expo-updates';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { Link } from 'expo-router';
 
 const STORAGE_KEYS = [
   '@learning_resources',
@@ -160,7 +161,7 @@ export default function SettingsScreen() {
             <ThemedText type="subtitle" style={styles.sectionTitle}>App Settings</ThemedText>
           </View>
           <View style={styles.sectionContent}>
-            <View style={styles.settingItem}>
+            {/* <View style={styles.settingItem}>
               <Text style={styles.settingText}>Dark Mode</Text>
               <Switch
                 value={darkMode}
@@ -169,8 +170,8 @@ export default function SettingsScreen() {
                 thumbColor={darkMode ? '#2196F3' : '#f4f3f4'}
                 ios_backgroundColor="#3e3e3e"
               />
-            </View>
-            <View style={styles.settingItem}>
+            </View> */}
+            {/* <View style={styles.settingItem}>
               <Text style={styles.settingText}>Notifications</Text>
               <Switch
                 value={notifications}
@@ -179,11 +180,13 @@ export default function SettingsScreen() {
                 thumbColor={notifications ? '#2196F3' : '#f4f3f4'}
                 ios_backgroundColor="#3e3e3e"
               />
-            </View>
-            <TouchableOpacity style={styles.settingItem}>
-              <Text style={styles.settingText}>Backup & Sync</Text>
-              <MaterialIcons name="cloud-upload" size={hp(2.5)} color="#b8c1ec" />
-            </TouchableOpacity>
+            </View> */}
+            <Link  href="https://docs.google.com/document/d/1eRYMYS-w1wDfgUjq89birFIH1cUpBctI/edit?usp=sharing&ouid=110889650968495214776&rtpof=true&sd=true" style={styles.settingItem}>
+              <TouchableOpacity  >
+              <Text style={styles.settingText}>Read Docs</Text>
+              </TouchableOpacity>
+              {/* <MaterialIcons name="cloud-upload" size={hp(2.5)} color="#b8c1ec" /> */}
+            </Link>
           </View>
         </View>
 

@@ -158,17 +158,22 @@ export default function HomeScreen() {
 
   // Handle search
   useEffect(() => {
-    if (searchQuery.trim()) {
-      setIsSearching(true);
-      const results = topics.filter(
-        (topic) =>
+    try {
+      if (searchQuery.trim()) {
+        setIsSearching(true);
+        const results = topics.filter(topic =>
           topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          topic.resources.some((resource) =>
-            resource.toLowerCase().includes(searchQuery.toLowerCase())
+          topic.resources.some(resource =>
+            typeof resource === 'string' && resource.toLowerCase().includes(searchQuery.toLowerCase())
           )
-      );
-      setSearchResults(results);
-    } else {
+        );
+        setSearchResults(results);
+      } else {
+        setIsSearching(false);
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
       setIsSearching(false);
       setSearchResults([]);
     }
@@ -566,6 +571,53 @@ export default function HomeScreen() {
         },
       ]
     );
+  };
+
+  const handleViewResource = async (resource) => {
+    try {
+      // Handle document type resources (uploaded files)
+      if (typeof resource === 'object' && resource.type === 'document') {
+        if (Platform.OS === 'android') {
+          // For Android, we need to copy the file to a public directory first
+          const publicDir = FileSystem.documentDirectory + 'downloads/';
+          await FileSystem.makeDirectoryAsync(publicDir, { intermediates: true });
+
+          // Get the filename from the resource
+          const fileName = resource.name || 'download.jpg';
+          const publicPath = publicDir + fileName;
+
+          // Copy the file to public directory
+          await FileSystem.copyAsync({
+            from: resource.uri,
+            to: publicPath
+          });
+
+          // Get a content URI that can be shared
+          const contentUri = await FileSystem.getContentUriAsync(publicPath);
+
+          // Open with system viewer/browser
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1,  // FLAG_GRANT_READ_URI_PERMISSION
+            type: resource.mimeType
+          });
+        } else {
+          // For iOS, we can share directly
+          await Sharing.shareAsync(resource.uri);
+        }
+      } else {
+        // For URL type resources, open in browser
+        const canOpen = await Linking.canOpenURL(resource);
+        if (canOpen) {
+          await Linking.openURL(resource);
+        } else {
+          Alert.alert('Error', 'Cannot open this URL in browser');
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to open file. Please try again.');
+    }
   };
 
   const handleShareOptions = (topic) => {
@@ -1028,39 +1080,43 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {isSearching && searchResults.length > 0 && (
+      {isSearching &&  (
         <View style={styles.searchResultsContainer}>
-          <ScrollView
-            style={styles.searchResults}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            {searchResults.map((topic) => (
-              <TouchableOpacity
-                key={topic.id}
-                style={styles.searchResultItem}
-                onPress={() => {
-                  setSelectedTopic(topic);
-                  setSearchQuery("");
-                }}
-              >
-                <Text style={styles.searchResultTitle}>
-                  Title: {highlightText(topic.title, searchQuery)}
-                </Text>
-                {topic.resources.map(
-                  (resource, index) =>
-                    resource
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) && (
+          {searchResults.length > 0 ? (
+            <ScrollView
+              style={styles.searchResults}
+              keyboardShouldPersistTaps="handled"
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }>
+              {searchResults.map((topic) => (
+                <TouchableOpacity
+                  key={topic.id}
+                  style={styles.searchResultItem}
+                  onPress={() => {
+                    setSelectedTopic(topic);
+                    setSearchQuery('');
+                    setIsSearching(false);
+                  }}>
+                  <Text style={styles.searchResultTitle}>
+                    Title: {highlightText(topic.title, searchQuery)}
+                  </Text>
+                  {topic.resources.map((resource, index) => (
+                    typeof resource === 'string' &&
+                    resource.toLowerCase().includes(searchQuery.toLowerCase()) && (
                       <Text key={index} style={styles.searchResultResource}>
                         {highlightText(resource, searchQuery)}
                       </Text>
                     )
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                  ))}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.noResultsContainer}>
+              <Text style={styles.noResultsText}>No results found</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -1285,6 +1341,16 @@ export default function HomeScreen() {
                         </View>
                       </Collapsible>
                       <View style={styles.resourceActions}>
+                        <TouchableOpacity
+                          style={styles.resourceActionButton}
+                          onPress={() => handleViewResource(resource)}
+                        >
+                          <MaterialIcons
+                            name={isImage(resource) ? "visibility" : "open-in-new"}
+                            size={20}
+                            color="#b8c1ec"
+                          />
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.resourceActionButton}
                           onPress={() => handleDeleteResource(resource)}
@@ -2057,5 +2123,16 @@ const styles = StyleSheet.create({
     height: hp("20%"),
     borderRadius: wp("2%"),
     backgroundColor: "#232946",
+  },
+
+  noResultsContainer: {
+    padding: wp('4%'),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsText: {
+    color: '#b8c1ec',
+    fontSize: wp('3%'),
+    textAlign: 'center',
   },
 });
