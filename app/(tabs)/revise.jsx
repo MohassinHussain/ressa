@@ -298,6 +298,10 @@ export default function ReviseScreen() {
         </View>
       )}
 
+      <View>
+        <Text style={{color: "#b8c1ec", fontStyle: "italic", padding: hp(2)}}>Notification and alarm system Will be updated soon!</Text>
+      </View>
+
       <View style={styles.content}>
         <ScrollView 
           style={styles.topicsContainer}

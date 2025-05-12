@@ -1,54 +1,72 @@
-import { StyleSheet, View, Text, TouchableOpacity, Modal, TextInput, Button, ScrollView, ActivityIndicator, Alert, Linking, Share, Image, RefreshControl, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useRef } from 'react';
-import { ThemedText } from '@/components/ThemedText';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Entypo from '@expo/vector-icons/Entypo';
-import AntDesign from '@expo/vector-icons/AntDesign';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { Collapsible } from '@/components/Collapsible';
-import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
-import React from 'react';
-import axios from 'axios';
-import AIResponseModal from '@/Modals/AIResponseModal';
-import * as DocumentPicker from 'expo-document-picker';
-import * as IntentLauncher from 'expo-intent-launcher';
-import { Platform } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Button,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Share,
+  Image,
+  RefreshControl,
+  Animated,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useState, useEffect, useRef } from "react";
+import { ThemedText } from "@/components/ThemedText";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Entypo from "@expo/vector-icons/Entypo";
+import AntDesign from "@expo/vector-icons/AntDesign";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from "react-native-responsive-screen";
+import { Collapsible } from "@/components/Collapsible";
+import * as ImagePicker from "expo-image-picker";
+import { useNavigation } from "@react-navigation/native";
+import React from "react";
+import axios from "axios";
+import AIResponseModal from "@/Modals/AIResponseModal";
+import * as DocumentPicker from "expo-document-picker";
+import * as IntentLauncher from "expo-intent-launcher";
+import { Platform } from "react-native";
 
-const STORAGE_KEY = '@learning_resources';
-const SCHEDULED_TOPICS_KEY = '@scheduled_topics'; 
+const STORAGE_KEY = "@learning_resources";
+const SCHEDULED_TOPICS_KEY = "@scheduled_topics";
 
 export default function HomeScreen() {
-
   const navigation = useNavigation();
 
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
-  const [newResource, setNewResource] = useState('');
+  const [newResource, setNewResource] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
+  const [editedTitle, setEditedTitle] = useState("");
   const [isAddingTopic, setIsAddingTopic] = useState(false);
-  const [newTopicTitle, setNewTopicTitle] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [newTopicTitle, setNewTopicTitle] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTopics, setScheduledTopics] = useState([]);
-  const [selectedDay, setSelectedDay] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedHour, setSelectedHour] = useState('');
-  const [selectedMinute, setSelectedMinute] = useState('');
-  const [selectedAmPm, setSelectedAmPm] = useState('');
+  const [selectedDay, setSelectedDay] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedHour, setSelectedHour] = useState("");
+  const [selectedMinute, setSelectedMinute] = useState("");
+  const [selectedAmPm, setSelectedAmPm] = useState("");
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
@@ -56,38 +74,57 @@ export default function HomeScreen() {
   const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
   const [showAmPmDropdown, setShowAmPmDropdown] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
-  const [editedResource, setEditedResource] = useState('');
+  const [editedResource, setEditedResource] = useState("");
 
   const [pickedImage, setPickedImage] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showAIResponse, setShowAIResponse] = useState(false);
   const [aiResponseData, setAIResponseData] = useState(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-
+  const [newSearchQuery, setNewSearchQuery] = useState("");
   const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-  days[0] = 'None';
+  const days = Array.from({ length: 31 }, (_, i) =>
+    (i + 1).toString().padStart(2, "0")
+  );
+  days[0] = "None";
   const months = [
-    'None', 'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    "None",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
-  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() + i).toString());
-  years[0] = 'None';
-  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-  hours[0] = 'None';
-  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-  hours[0] = 'None';
-  const amPmOptions = ['AM', 'PM'];
-  hours[0] = 'None';
+  const years = Array.from({ length: 5 }, (_, i) =>
+    (new Date().getFullYear() + i).toString()
+  );
+  years[0] = "None";
+  const hours = Array.from({ length: 12 }, (_, i) =>
+    (i + 1).toString().padStart(2, "0")
+  );
+  hours[0] = "None";
+  const minutes = Array.from({ length: 60 }, (_, i) =>
+    i.toString().padStart(2, "0")
+  );
+  hours[0] = "None";
+  const amPmOptions = ["AM", "PM"];
+  hours[0] = "None";
 
   const taglines = [
     "Organize, Save, Learn.",
     "Smart Resource Management, Made Simple.",
     "Keep your knowledge in check — with Ressa.",
     "Effortless Resource Tracking.",
-    "Your Digital Resource Library."
+    "Your Digital Resource Library.",
   ];
 
   useEffect(() => {
@@ -102,7 +139,7 @@ export default function HomeScreen() {
           toValue: 1,
           duration: 500,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
 
       setCurrentTaglineIndex((prevIndex) =>
@@ -123,11 +160,12 @@ export default function HomeScreen() {
   useEffect(() => {
     if (searchQuery.trim()) {
       setIsSearching(true);
-      const results = topics.filter(topic =>
-        topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.resources.some(resource =>
-          resource.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+      const results = topics.filter(
+        (topic) =>
+          topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          topic.resources.some((resource) =>
+            resource.toLowerCase().includes(searchQuery.toLowerCase())
+          )
       );
       setSearchResults(results);
     } else {
@@ -144,7 +182,11 @@ export default function HomeScreen() {
       } else {
         // Initialize with default topics if no data exists
         const defaultTopics = [
-          { id: '1', title: 'This is an Example', resources: ['Example Documentation', 'https://github.com'] },
+          {
+            id: "1",
+            title: "This is an Example",
+            resources: ["Example Documentation", "https://github.com"],
+          },
           // { id: '2', title: 'JavaScript', resources: ['MDN JavaScript Guide', 'JavaScript.info'] },
           // { id: '3', title: 'TypeScript', resources: ['TypeScript Handbook', 'TypeScript Deep Dive'] },
           // { id: '4', title: 'UI/UX Design', resources: ['Material Design Guidelines', 'Figma Tutorials'] },
@@ -154,7 +196,7 @@ export default function HomeScreen() {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultTopics));
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +209,7 @@ export default function HomeScreen() {
         setScheduledTopics(JSON.parse(storedData));
       }
     } catch (error) {
-      console.error('Error loading scheduled topics:', error);
+      console.error("Error loading scheduled topics:", error);
     }
   };
 
@@ -175,7 +217,7 @@ export default function HomeScreen() {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTopics));
     } catch (error) {
-      console.error('Error saving data:', error);
+      console.error("Error saving data:", error);
     }
   };
 
@@ -185,39 +227,44 @@ export default function HomeScreen() {
         ...topic,
         scheduledTime: time,
         scheduledDate: date,
-        isScheduled: true
+        isScheduled: true,
       };
 
       const updatedScheduledTopics = [...scheduledTopics, scheduledTopic];
       setScheduledTopics(updatedScheduledTopics);
-      await AsyncStorage.setItem(SCHEDULED_TOPICS_KEY, JSON.stringify(updatedScheduledTopics));
+      await AsyncStorage.setItem(
+        SCHEDULED_TOPICS_KEY,
+        JSON.stringify(updatedScheduledTopics)
+      );
 
       // Update the original topic to show it's scheduled
-      const updatedTopics = topics.map(t =>
+      const updatedTopics = topics.map((t) =>
         t.id === topic.id ? { ...t, isScheduled: true } : t
       );
       setTopics(updatedTopics);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTopics));
     } catch (error) {
-      console.error('Error saving scheduled topic:', error);
+      console.error("Error saving scheduled topic:", error);
     }
   };
 
   const handleAddResource = async () => {
     if (newResource.trim() && selectedTopic) {
-      const updatedTopics = topics.map(topic => {
+      const updatedTopics = topics.map((topic) => {
         if (topic.id === selectedTopic.id) {
           return {
             ...topic,
-            resources: [...topic.resources, newResource.trim()]
+            resources: [...topic.resources, newResource.trim()],
           };
         }
         return topic;
       });
 
       setTopics(updatedTopics);
-      setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
-      setNewResource('');
+      setSelectedTopic(
+        updatedTopics.find((t) => t.id === selectedTopic.id) || null
+      );
+      setNewResource("");
 
       await saveData(updatedTopics);
     }
@@ -225,18 +272,20 @@ export default function HomeScreen() {
 
   const handleEditTitle = async () => {
     if (editedTitle.trim() && selectedTopic) {
-      const updatedTopics = topics.map(topic => {
+      const updatedTopics = topics.map((topic) => {
         if (topic.id === selectedTopic.id) {
           return {
             ...topic,
-            title: editedTitle.trim()
+            title: editedTitle.trim(),
           };
         }
         return topic;
       });
 
       setTopics(updatedTopics);
-      setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
+      setSelectedTopic(
+        updatedTopics.find((t) => t.id === selectedTopic.id) || null
+      );
       setEditingTitle(false);
 
       await saveData(updatedTopics);
@@ -248,13 +297,13 @@ export default function HomeScreen() {
       const newTopic = {
         id: Date.now().toString(),
         title: newTopicTitle.trim(),
-        resources: []
+        resources: [],
       };
 
       const updatedTopics = [...topics, newTopic];
       setTopics(updatedTopics);
       setSelectedTopic(newTopic);
-      setNewTopicTitle('');
+      setNewTopicTitle("");
       setIsAddingTopic(false);
 
       await saveData(updatedTopics);
@@ -262,17 +311,21 @@ export default function HomeScreen() {
   };
 
   const startEditing = () => {
-    setEditedTitle(selectedTopic?.title || '');
+    setEditedTitle(selectedTopic?.title || "");
     setEditingTitle(true);
   };
 
   const highlightText = (text, query) => {
     if (!query) return text;
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    const parts = text.split(new RegExp(`(${query})`, "gi"));
     return parts.map((part, i) =>
-      part.toLowerCase() === query.toLowerCase() ?
-        <Text key={i} style={styles.highlightedText}>{part}</Text> :
+      part.toLowerCase() === query.toLowerCase() ? (
+        <Text key={i} style={styles.highlightedText}>
+          {part}
+        </Text>
+      ) : (
         part
+      )
     );
   };
 
@@ -287,21 +340,28 @@ export default function HomeScreen() {
   };
 
   const resetScheduleFields = () => {
-    setSelectedDay('');
-    setSelectedMonth('');
-    setSelectedYear('');
-    setSelectedHour('');
-    setSelectedMinute('');
-    setSelectedAmPm('');
+    setSelectedDay("");
+    setSelectedMonth("");
+    setSelectedYear("");
+    setSelectedHour("");
+    setSelectedMinute("");
+    setSelectedAmPm("");
   };
 
-  const renderDropdown = (items, selectedValue, setSelectedValue, showDropdown, setShowDropdown) => (
+  const renderDropdown = (
+    items,
+    selectedValue,
+    setSelectedValue,
+    showDropdown,
+    setShowDropdown
+  ) => (
     <View style={styles.dropdownContainer}>
       <TouchableOpacity
         style={styles.dropdownButton}
-        onPress={() => setShowDropdown(!showDropdown)}>
+        onPress={() => setShowDropdown(!showDropdown)}
+      >
         <Text style={styles.dropdownButtonText}>
-          {selectedValue || 'Select'}
+          {selectedValue || "Select"}
         </Text>
         <MaterialIcons
           name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
@@ -318,7 +378,8 @@ export default function HomeScreen() {
               onPress={() => {
                 setSelectedValue(item);
                 setShowDropdown(false);
-              }}>
+              }}
+            >
               <Text style={styles.dropdownItemText}>{item}</Text>
             </TouchableOpacity>
           ))}
@@ -334,7 +395,7 @@ export default function HomeScreen() {
       [
         {
           text: "Cancel",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "Delete",
@@ -342,16 +403,26 @@ export default function HomeScreen() {
           onPress: async () => {
             try {
               // Remove from topics
-              const updatedTopics = topics.filter(t => t.id !== topic.id);
+              const updatedTopics = topics.filter((t) => t.id !== topic.id);
               setTopics(updatedTopics);
-              await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTopics));
+              await AsyncStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(updatedTopics)
+              );
 
               // Remove from scheduled topics if exists
-              const storedScheduledTopics = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+              const storedScheduledTopics = await AsyncStorage.getItem(
+                SCHEDULED_TOPICS_KEY
+              );
               if (storedScheduledTopics) {
                 const scheduledTopics = JSON.parse(storedScheduledTopics);
-                const updatedScheduledTopics = scheduledTopics.filter(t => t.id !== topic.id);
-                await AsyncStorage.setItem(SCHEDULED_TOPICS_KEY, JSON.stringify(updatedScheduledTopics));
+                const updatedScheduledTopics = scheduledTopics.filter(
+                  (t) => t.id !== topic.id
+                );
+                await AsyncStorage.setItem(
+                  SCHEDULED_TOPICS_KEY,
+                  JSON.stringify(updatedScheduledTopics)
+                );
               }
 
               // Close modal if the deleted topic was selected
@@ -359,17 +430,31 @@ export default function HomeScreen() {
                 setSelectedTopic(null);
               }
             } catch (error) {
-              console.error('Error deleting topic:', error);
+              console.error("Error deleting topic:", error);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const isUrl = (str) => {
-    const domainExtensions = ['.com', '.org', '.net', '.io', '.edu', '.gov', '.me', '.co', '.app'];
-    const hasLikelyDomain = domainExtensions.some(ext => str.includes(ext)) || str.includes('www.') || str.includes('https://') || str.includes('http://');
+    const domainExtensions = [
+      ".com",
+      ".org",
+      ".net",
+      ".io",
+      ".edu",
+      ".gov",
+      ".me",
+      ".co",
+      ".app",
+    ];
+    const hasLikelyDomain =
+      domainExtensions.some((ext) => str.includes(ext)) ||
+      str.includes("www.") ||
+      str.includes("https://") ||
+      str.includes("http://");
 
     if (!hasLikelyDomain) return false;
 
@@ -382,7 +467,9 @@ export default function HomeScreen() {
 
     try {
       // Add protocol if not present (for URL constructor to work)
-      const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
+      const url = match[0].startsWith("http")
+        ? match[0]
+        : `https://${match[0]}`;
       new URL(url);
       return true;
     } catch {
@@ -398,19 +485,19 @@ export default function HomeScreen() {
         [
           {
             text: "Open Link",
-            onPress: () => Linking.openURL(resource)
+            onPress: () => Linking.openURL(resource),
           },
           {
             text: "Edit",
             onPress: () => {
               setEditingResource(resource);
               setEditedResource(resource);
-            }
+            },
           },
           {
             text: "Cancel",
-            style: "cancel"
-          }
+            style: "cancel",
+          },
         ]
       );
     } else {
@@ -421,22 +508,24 @@ export default function HomeScreen() {
 
   const handleEditResource = async () => {
     if (editedResource.trim() && selectedTopic && editingResource) {
-      const updatedTopics = topics.map(topic => {
+      const updatedTopics = topics.map((topic) => {
         if (topic.id === selectedTopic.id) {
           return {
             ...topic,
-            resources: topic.resources.map(resource =>
+            resources: topic.resources.map((resource) =>
               resource === editingResource ? editedResource.trim() : resource
-            )
+            ),
           };
         }
         return topic;
       });
 
       setTopics(updatedTopics);
-      setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
+      setSelectedTopic(
+        updatedTopics.find((t) => t.id === selectedTopic.id) || null
+      );
       setEditingResource(null);
-      setEditedResource('');
+      setEditedResource("");
 
       await saveData(updatedTopics);
     }
@@ -449,73 +538,73 @@ export default function HomeScreen() {
       [
         {
           text: "Cancel",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
             if (selectedTopic) {
-              const updatedTopics = topics.map(topic => {
+              const updatedTopics = topics.map((topic) => {
                 if (topic.id === selectedTopic.id) {
                   return {
                     ...topic,
-                    resources: topic.resources.filter(r => r !== resource)
+                    resources: topic.resources.filter((r) => r !== resource),
                   };
                 }
                 return topic;
               });
 
               setTopics(updatedTopics);
-              setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
+              setSelectedTopic(
+                updatedTopics.find((t) => t.id === selectedTopic.id) || null
+              );
 
               await saveData(updatedTopics);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const handleShareOptions = (topic) => {
-    Alert.alert(
-      "Export Resources",
-      "Choose export format",
-      [
-        {
-          text: "JSON",
-          onPress: () => handleExportJSON(topic)
-        },
-        {
-          text: "PDF",
-          onPress: () => handleExportPDF(topic)
-        },
-        {
-          text: "DOCX",
-          onPress: () => handleExportDOCX(topic)
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
+    Alert.alert("Export Resources", "Choose export format", [
+      {
+        text: "JSON",
+        onPress: () => handleExportJSON(topic),
+      },
+      {
+        text: "PDF",
+        onPress: () => handleExportPDF(topic),
+      },
+      {
+        text: "DOCX",
+        onPress: () => handleExportDOCX(topic),
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
   };
 
   const handleExportJSON = async (topic) => {
     try {
       const exportData = {
         title: topic.title,
-        resources: topic.resources
+        resources: topic.resources,
       };
 
       const jsonString = JSON.stringify(exportData, null, 2);
-      const fileUri = FileSystem.documentDirectory + `${topic.title.replace(/\s+/g, '_')}.json`;
+      const fileUri =
+        FileSystem.documentDirectory +
+        `${topic.title.replace(/\s+/g, "_")}.json`;
 
       await FileSystem.writeAsStringAsync(fileUri, jsonString);
       await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/json',
-        dialogTitle: `Share ${topic.title} Resources`
+        mimeType: "application/json",
+        dialogTitle: `Share ${topic.title} Resources`,
       });
     } catch (error) {
       Alert.alert("Error", "Failed to export JSON file");
@@ -536,14 +625,19 @@ export default function HomeScreen() {
           <body>
             <h1>${topic.title}</h1>
             <h2>Resources:</h2>
-            ${topic.resources.map((resource, index) =>
-        `<div class="resource">${index + 1}. ${resource}</div>`
-      ).join('')}
+            ${topic.resources
+              .map(
+                (resource, index) =>
+                  `<div class="resource">${index + 1}. ${resource}</div>`
+              )
+              .join("")}
           </body>
         </html>
       `;
 
-      const fileUri = FileSystem.documentDirectory + `${topic.title.replace(/\s+/g, '_')}.pdf`;
+      const fileUri =
+        FileSystem.documentDirectory +
+        `${topic.title.replace(/\s+/g, "_")}.pdf`;
 
       //  implement actual PDF generation here
       Alert.alert("Info", "PDF export will be implemented in the next update");
@@ -566,72 +660,84 @@ export default function HomeScreen() {
       let result = await DocumentPicker.getDocumentAsync({
         multiple: true,
         type: [
-          'image/*',
-          'video/*',
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'application/vnd.ms-excel',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'text/plain',
-          'application/rtf'
-        ]
+          "image/*",
+          "video/*",
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "text/plain",
+          "application/rtf",
+        ],
       });
 
       if (!result.canceled && selectedTopic) {
         const documents = result.assets;
-        const updatedTopics = topics.map(topic => {
+        const updatedTopics = topics.map((topic) => {
           if (topic.id === selectedTopic.id) {
             return {
               ...topic,
               resources: [
                 ...topic.resources,
-                ...documents.map(doc => ({
-                  type: 'document',
+                ...documents.map((doc) => ({
+                  type: "document",
                   uri: doc.uri,
                   name: doc.name,
                   mimeType: doc.mimeType,
-                  size: doc.size
-                }))
-              ]
+                  size: doc.size,
+                })),
+              ],
             };
           }
           return topic;
         });
 
         setTopics(updatedTopics);
-        setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id) || null);
+        setSelectedTopic(
+          updatedTopics.find((t) => t.id === selectedTopic.id) || null
+        );
         await saveData(updatedTopics);
       }
     } catch (error) {
-      console.error('Error picking documents:', error);
-      Alert.alert('Error', 'Failed to add documents');
+      console.error("Error picking documents:", error);
+      Alert.alert("Error", "Failed to add documents");
     }
   };
 
   const isImage = (resource) => {
-    if (typeof resource === 'object' && resource.type === 'document') {
-      return resource.mimeType.startsWith('image/');
+    if (typeof resource === "object" && resource.type === "document") {
+      return resource.mimeType.startsWith("image/");
     }
-    if (typeof resource === 'string') {
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-      return imageExtensions.some(ext => resource.toLowerCase().endsWith(ext));
+    if (typeof resource === "string") {
+      const imageExtensions = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".webp",
+      ];
+      return imageExtensions.some((ext) =>
+        resource.toLowerCase().endsWith(ext)
+      );
     }
     return false;
   };
 
   const isDocument = (resource) => {
-    return typeof resource === 'object' && resource.type === 'document';
+    return typeof resource === "object" && resource.type === "document";
   };
 
   const getDocumentIcon = (mimeType) => {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'videocam';
-    if (mimeType === 'application/pdf') return 'picture-as-pdf';
-    if (mimeType.includes('word')) return 'description';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'table-chart';
-    if (mimeType === 'text/plain') return 'text-fields';
-    return 'insert-drive-file';
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "videocam";
+    if (mimeType === "application/pdf") return "picture-as-pdf";
+    if (mimeType.includes("word")) return "description";
+    if (mimeType.includes("excel") || mimeType.includes("spreadsheet"))
+      return "table-chart";
+    if (mimeType === "text/plain") return "text-fields";
+    return "insert-drive-file";
   };
 
   const onRefresh = React.useCallback(() => {
@@ -656,11 +762,18 @@ export default function HomeScreen() {
       setIsLoadingAI(true);
 
       const form = new FormData();
-      form.append("topicName", selectedTopic?.title || "Learn Things");
+      // if (customQuery) {
+      //   form.append("topicName", customQuery);
+      // } else {
+        form.append(
+          "topicName",
+          selectedTopic?.title || "Learning habits"
+        );
+      // }
 
-      const res = await axios.post("https://ressa-model.onrender.com/get-resources", form, {
+      const res = await axios.post("http://onrender:5000", form, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
@@ -680,17 +793,20 @@ export default function HomeScreen() {
     try {
       // Create a collapsible section with all the resources
       const collapsibleContent = {
-        type: 'collapsible',
-        title: 'RESOURCES FROM INTERNET',
-        content: resources
+        type: "collapsible",
+        title: "RESOURCES FROM INTERNET",
+        content: resources,
       };
 
       // Update the selected topic with the new collapsible resource
-      const updatedTopics = topics.map(topic => {
+      const updatedTopics = topics.map((topic) => {
         if (topic.id === selectedTopic.id) {
           // Check if the collapsible already exists
           const existingCollapsibleIndex = topic.resources.findIndex(
-            resource => typeof resource === 'object' && resource.type === 'collapsible' && resource.title === 'RESOURCES FROM INTERNET'
+            (resource) =>
+              typeof resource === "object" &&
+              resource.type === "collapsible" &&
+              resource.title === "RESOURCES FROM INTERNET"
           );
 
           if (existingCollapsibleIndex !== -1) {
@@ -699,13 +815,13 @@ export default function HomeScreen() {
             updatedResources[existingCollapsibleIndex] = collapsibleContent;
             return {
               ...topic,
-              resources: updatedResources
+              resources: updatedResources,
             };
           } else {
             // Add new collapsible
             return {
               ...topic,
-              resources: [...topic.resources, collapsibleContent]
+              resources: [...topic.resources, collapsibleContent],
             };
           }
         }
@@ -713,11 +829,11 @@ export default function HomeScreen() {
       });
 
       setTopics(updatedTopics);
-      setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id));
+      setSelectedTopic(updatedTopics.find((t) => t.id === selectedTopic.id));
       await saveData(updatedTopics);
     } catch (error) {
-      console.error('Error saving resources to topic:', error);
-      Alert.alert('Error', 'Failed to save resources to topic');
+      console.error("Error saving resources to topic:", error);
+      Alert.alert("Error", "Failed to save resources to topic");
     }
   };
 
@@ -729,32 +845,34 @@ export default function HomeScreen() {
         [
           {
             text: "Cancel",
-            style: "cancel"
+            style: "cancel",
           },
           {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
               try {
-                const updatedTopics = topics.map(topic => {
+                const updatedTopics = topics.map((topic) => {
                   if (topic.id === selectedTopic.id) {
                     return {
                       ...topic,
-                      resources: topic.resources.filter((_, i) => i !== index)
+                      resources: topic.resources.filter((_, i) => i !== index),
                     };
                   }
                   return topic;
                 });
 
                 setTopics(updatedTopics);
-                setSelectedTopic(updatedTopics.find(t => t.id === selectedTopic.id));
+                setSelectedTopic(
+                  updatedTopics.find((t) => t.id === selectedTopic.id)
+                );
                 await saveData(updatedTopics);
               } catch (error) {
-                console.error('Error deleting resources:', error);
-                Alert.alert('Error', 'Failed to delete resources');
+                console.error("Error deleting resources:", error);
+                Alert.alert("Error", "Failed to delete resources");
               }
-            }
-          }
+            },
+          },
         ]
       );
     };
@@ -771,26 +889,27 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         <Collapsible title={resource.title}>
-          {resource.content.articles && resource.content.articles.length > 0 && (
-            <View key="articles-section" style={styles.section}>
-              <ThemedText type="subtitle" style={{ marginBottom: hp(2) }}>
-                Articles
-              </ThemedText>
-              {resource.content.articles.map((article, articleIndex) => (
-                <TouchableOpacity
-                  key={`article-${articleIndex}`}
-                  style={styles.card}
-                  onPress={() => Linking.openURL(article.link)}
-                >
-                  <Text style={styles.cardTitle}>{article.title}</Text>
-                  <Text style={styles.cardSummary}>{article.summary}</Text>
-                  <Text style={styles.cardScore}>
-                    Relevance Score: {(article.score * 100).toFixed(2)}%
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {resource.content.articles &&
+            resource.content.articles.length > 0 && (
+              <View key="articles-section" style={styles.section}>
+                <ThemedText type="subtitle" style={{ marginBottom: hp(2) }}>
+                  Articles
+                </ThemedText>
+                {resource.content.articles.map((article, articleIndex) => (
+                  <TouchableOpacity
+                    key={`article-${articleIndex}`}
+                    style={styles.card}
+                    onPress={() => Linking.openURL(article.link)}
+                  >
+                    <Text style={styles.cardTitle}>{article.title}</Text>
+                    <Text style={styles.cardSummary}>{article.summary}</Text>
+                    <Text style={styles.cardScore}>
+                      Relevance Score: {(article.score * 100).toFixed(2)}%
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
           {resource.content.videos && resource.content.videos.length > 0 && (
             <View key="videos-section" style={styles.section}>
@@ -807,7 +926,8 @@ export default function HomeScreen() {
                   <Text style={styles.cardSummary}>{video.body}</Text>
                   {video.upload_time && (
                     <Text style={styles.cardTime}>
-                      Uploaded: {new Date(video.upload_time).toLocaleDateString()}
+                      Uploaded:{" "}
+                      {new Date(video.upload_time).toLocaleDateString()}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -845,25 +965,25 @@ export default function HomeScreen() {
 
   const openDocument = async (uri, mimeType) => {
     try {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         // Create a public directory path
-        const publicDir = FileSystem.documentDirectory + 'public/';
+        const publicDir = FileSystem.documentDirectory + "public/";
         await FileSystem.makeDirectoryAsync(publicDir, { intermediates: true });
-        
+
         // Get the file name from the URI
-        const fileName = uri.split('/').pop();
+        const fileName = uri.split("/").pop();
         const publicPath = publicDir + fileName;
-        
+
         // Copy the file to public directory
         await FileSystem.copyAsync({
           from: uri,
-          to: publicPath
+          to: publicPath,
         });
 
         // Create a content URI
         const contentUri = await FileSystem.getContentUriAsync(publicPath);
 
-        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
           data: contentUri,
           type: mimeType,
           flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
@@ -873,12 +993,12 @@ export default function HomeScreen() {
         if (supported) {
           await Linking.openURL(uri);
         } else {
-          Alert.alert('Error', 'No app available to open this document');
+          Alert.alert("Error", "No app available to open this document");
         }
       }
     } catch (error) {
-      console.error('Error opening document:', error);
-      Alert.alert('Error', 'Failed to open document');
+      console.error("Error opening document:", error);
+      Alert.alert("Error", "Failed to open document");
     }
   };
 
@@ -899,7 +1019,12 @@ export default function HomeScreen() {
             onChangeText={setSearchQuery}
             placeholderTextColor="#b8c1ec"
           />
-          <MaterialIcons name="search" size={hp(2)} color="#b8c1ec" style={styles.searchIcon} />
+          <MaterialIcons
+            name="search"
+            size={hp(2)}
+            color="#b8c1ec"
+            style={styles.searchIcon}
+          />
         </View>
       </View>
 
@@ -909,25 +1034,30 @@ export default function HomeScreen() {
             style={styles.searchResults}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }>
+            }
+          >
             {searchResults.map((topic) => (
               <TouchableOpacity
                 key={topic.id}
                 style={styles.searchResultItem}
                 onPress={() => {
                   setSelectedTopic(topic);
-                  setSearchQuery('');
-                }}>
+                  setSearchQuery("");
+                }}
+              >
                 <Text style={styles.searchResultTitle}>
                   Title: {highlightText(topic.title, searchQuery)}
                 </Text>
-                {topic.resources.map((resource, index) => (
-                  resource.toLowerCase().includes(searchQuery.toLowerCase()) && (
-                    <Text key={index} style={styles.searchResultResource}>
-                      {highlightText(resource, searchQuery)}
-                    </Text>
-                  )
-                ))}
+                {topic.resources.map(
+                  (resource, index) =>
+                    resource
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) && (
+                      <Text key={index} style={styles.searchResultResource}>
+                        {highlightText(resource, searchQuery)}
+                      </Text>
+                    )
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -939,16 +1069,20 @@ export default function HomeScreen() {
           style={styles.topicsContainer}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }>
+          }
+        >
           {topics.map((topic) => (
             <View key={topic.id} style={styles.topicCardContainer}>
               <TouchableOpacity
                 style={styles.topicCard}
-                onPress={() => setSelectedTopic(topic)}>
+                onPress={() => setSelectedTopic(topic)}
+              >
                 <View style={styles.topicCardContent}>
                   <ThemedText type="defaultSemiBold">{topic.title}</ThemedText>
                 </View>
-                <Text style={{ color: '#b8c1ec', fontWeight: 'bold' }}>{topic.resources.length} resources</Text>
+                <Text style={{ color: "#b8c1ec", fontWeight: "bold" }}>
+                  {topic.resources.length} resources
+                </Text>
               </TouchableOpacity>
               <View style={styles.topicActions}>
                 <TouchableOpacity
@@ -957,11 +1091,12 @@ export default function HomeScreen() {
                     e.stopPropagation();
                     setSelectedTopic(topic);
                     setIsScheduling(true);
-                  }}>
+                  }}
+                >
                   <FontAwesome
                     name="calendar"
                     size={hp(2)}
-                    color={topic.isScheduled ? '#4CAF50' : '#b8c1ec'}
+                    color={topic.isScheduled ? "#4CAF50" : "#b8c1ec"}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -969,7 +1104,8 @@ export default function HomeScreen() {
                   onPress={(e) => {
                     e.stopPropagation();
                     handleDeleteTopic(topic);
-                  }}>
+                  }}
+                >
                   <MaterialIcons name="delete" size={hp(2)} color="#ff4444" />
                 </TouchableOpacity>
               </View>
@@ -978,7 +1114,8 @@ export default function HomeScreen() {
         </ScrollView>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => setIsAddingTopic(true)}>
+          onPress={() => setIsAddingTopic(true)}
+        >
           <ThemedText style={styles.addButtonText}>+ Add New Topic</ThemedText>
         </TouchableOpacity>
       </View>
@@ -993,7 +1130,8 @@ export default function HomeScreen() {
         visible={isAddingTopic}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setIsAddingTopic(false)}>
+        onRequestClose={() => setIsAddingTopic(false)}
+      >
         <View style={styles.addTopicModalContainer}>
           <View style={styles.addTopicModalContent}>
             <ThemedText type="title" style={styles.addTopicModalTitle}>
@@ -1010,13 +1148,15 @@ export default function HomeScreen() {
             />
             <TouchableOpacity
               style={styles.addTopicButton}
-              onPress={handleAddTopic}>
-              <ThemedText style={styles.addTopicButtonText}>Add Topic</ThemedText>
+              onPress={handleAddTopic}
+            >
+              <ThemedText style={styles.addTopicButtonText}>
+                Add Topic
+              </ThemedText>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
 
       {/* Edit Topic Modal */}
       <Modal
@@ -1027,7 +1167,8 @@ export default function HomeScreen() {
           setSelectedTopic(null);
           setEditingTitle(false);
           setEditingResource(null);
-        }}>
+        }}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -1037,7 +1178,8 @@ export default function HomeScreen() {
                   setSelectedTopic(null);
                   setEditingTitle(false);
                   setEditingResource(null);
-                }}>
+                }}
+              >
                 <AntDesign name="caretleft" size={28} color="white" />
               </TouchableOpacity>
               {editingTitle ? (
@@ -1051,7 +1193,8 @@ export default function HomeScreen() {
                   />
                   <TouchableOpacity
                     style={styles.saveTitleButton}
-                    onPress={handleEditTitle}>
+                    onPress={handleEditTitle}
+                  >
                     <MaterialIcons name="check" size={hp(2)} color="white" />
                   </TouchableOpacity>
                 </View>
@@ -1063,35 +1206,48 @@ export default function HomeScreen() {
                   <View style={styles.modalActions}>
                     <TouchableOpacity
                       style={styles.editTitleButton}
-                      onPress={startEditing}>
+                      onPress={startEditing}
+                    >
                       <MaterialIcons name="edit" size={hp(2)} color="white" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.aiButton}
-                      onPress={handleFetchButton}>
-                      <MaterialIcons name="auto-awesome" size={hp(2)} color="#b8c1ec" />
+                      onPress={handleFetchButton}
+                    >
+                      <MaterialIcons
+                        name="auto-awesome"
+                        size={hp(2)}
+                        color="#b8c1ec"
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.shareButton}
-                      onPress={() => handleShareOptions(selectedTopic)}>
-                      <MaterialIcons name="share" size={hp(2)} color="#b8c1ec" />
+                      onPress={() => handleShareOptions(selectedTopic)}
+                    >
+                      <MaterialIcons
+                        name="share"
+                        size={hp(2)}
+                        color="#b8c1ec"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
             </View>
 
-
             {/* Resource items */}
             <ScrollView style={styles.resourcesList}>
               {selectedTopic?.resources.map((resource, index) => {
-                if (typeof resource === 'object' && resource.type === 'document') {
+                if (
+                  typeof resource === "object" &&
+                  resource.type === "document"
+                ) {
                   return (
                     <View key={index} style={styles.resourceItem}>
                       <Text style={styles.resourceNumber}>{index + 1}.</Text>
                       <Collapsible title={resource.name}>
                         <View style={styles.documentContainer}>
-                          {resource.mimeType.startsWith('image/') ? (
+                          {resource.mimeType.startsWith("image/") ? (
                             <Image
                               source={{ uri: resource.uri }}
                               style={styles.documentImage}
@@ -1099,22 +1255,30 @@ export default function HomeScreen() {
                             />
                           ) : (
                             <>
-                              <MaterialIcons 
-                                name={getDocumentIcon(resource.mimeType)} 
-                                size={hp(4)} 
-                                color="#b8c1ec" 
+                              <MaterialIcons
+                                name={getDocumentIcon(resource.mimeType)}
+                                size={hp(4)}
+                                color="#b8c1ec"
                               />
                               <View style={styles.documentInfo}>
-                                <Text style={styles.documentName}>{resource.name}</Text>
+                                <Text style={styles.documentName}>
+                                  {resource.name}
+                                </Text>
                                 <Text style={styles.documentSize}>
                                   {(resource.size / 1024 / 1024).toFixed(2)} MB
                                 </Text>
                               </View>
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 style={styles.documentActionButton}
-                                onPress={() => openDocument(resource.uri, resource.mimeType)}
+                                onPress={() =>
+                                  openDocument(resource.uri, resource.mimeType)
+                                }
                               >
-                                <MaterialIcons name="open-in-new" size={hp(2)} color="#b8c1ec" />
+                                <MaterialIcons
+                                  name="open-in-new"
+                                  size={hp(2)}
+                                  color="#b8c1ec"
+                                />
                               </TouchableOpacity>
                             </>
                           )}
@@ -1123,13 +1287,21 @@ export default function HomeScreen() {
                       <View style={styles.resourceActions}>
                         <TouchableOpacity
                           style={styles.resourceActionButton}
-                          onPress={() => handleDeleteResource(resource)}>
-                          <MaterialIcons name="delete" size={20} color="#ff4444" />
+                          onPress={() => handleDeleteResource(resource)}
+                        >
+                          <MaterialIcons
+                            name="delete"
+                            size={20}
+                            color="#ff4444"
+                          />
                         </TouchableOpacity>
                       </View>
                     </View>
                   );
-                } else if (typeof resource === 'object' && resource.type === 'collapsible') {
+                } else if (
+                  typeof resource === "object" &&
+                  resource.type === "collapsible"
+                ) {
                   return renderCollapsibleResource(resource, index);
                 } else {
                   return (
@@ -1149,8 +1321,13 @@ export default function HomeScreen() {
                           />
                           <TouchableOpacity
                             style={styles.saveResourceButton}
-                            onPress={handleEditResource}>
-                            <MaterialIcons name="check" size={24} color="white" />
+                            onPress={handleEditResource}
+                          >
+                            <MaterialIcons
+                              name="check"
+                              size={24}
+                              color="white"
+                            />
                           </TouchableOpacity>
                         </View>
                       ) : (
@@ -1166,11 +1343,17 @@ export default function HomeScreen() {
                           ) : (
                             <View>
                               {isUrl(resource) ? (
-                                <TouchableOpacity onPress={() => Linking.openURL(resource)}>
-                                  <Text style={{ color: '#b8c1ec' }}>{resource}</Text>
+                                <TouchableOpacity
+                                  onPress={() => Linking.openURL(resource)}
+                                >
+                                  <Text style={{ color: "#b8c1ec" }}>
+                                    {resource}
+                                  </Text>
                                 </TouchableOpacity>
                               ) : (
-                                <Text style={{ color: 'white' }}>{resource}</Text>
+                                <Text style={{ color: "white" }}>
+                                  {resource}
+                                </Text>
                               )}
                             </View>
                           )}
@@ -1179,17 +1362,29 @@ export default function HomeScreen() {
                       <View style={styles.resourceActions}>
                         <TouchableOpacity
                           style={styles.resourceActionButton}
-                          onPress={() => handleResourceAction(resource)}>
+                          onPress={() => handleResourceAction(resource)}
+                        >
                           <MaterialIcons
-                            name={isUrl(resource) ? "link" : isImage(resource) ? "image" : "edit"}
+                            name={
+                              isUrl(resource)
+                                ? "link"
+                                : isImage(resource)
+                                ? "image"
+                                : "edit"
+                            }
                             size={20}
                             color="#b8c1ec"
                           />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.resourceActionButton}
-                          onPress={() => handleDeleteResource(resource)}>
-                          <MaterialIcons name="delete" size={20} color="#ff4444" />
+                          onPress={() => handleDeleteResource(resource)}
+                        >
+                          <MaterialIcons
+                            name="delete"
+                            size={20}
+                            color="#ff4444"
+                          />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1216,16 +1411,22 @@ export default function HomeScreen() {
               />
               <TouchableOpacity
                 style={styles.addResourceButton}
-                onPress={handleAddResource}>
+                onPress={handleAddResource}
+              >
                 <Entypo name="add-to-list" size={hp(2.5)} color="#B8C1EC" />
               </TouchableOpacity>
 
               {/* add image as resource */}
 
-              <TouchableOpacity style={styles.mediaButton}
+              <TouchableOpacity
+                style={styles.mediaButton}
                 onPress={handleAddImageResource}
               >
-                <MaterialIcons name="perm-media" size={hp(2.5)} color="#B8C1EC" />
+                <MaterialIcons
+                  name="perm-media"
+                  size={hp(2.5)}
+                  color="#B8C1EC"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -1237,47 +1438,91 @@ export default function HomeScreen() {
         visible={isScheduling}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setIsScheduling(false)}>
+        onRequestClose={() => setIsScheduling(false)}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={() => setIsScheduling(false)}>
+                onPress={() => setIsScheduling(false)}
+              >
                 <AntDesign name="caretleft" size={28} color="white" />
               </TouchableOpacity>
               <ThemedText type="title" style={styles.modalTitle}>
                 Schedule Topic
               </ThemedText>
             </View>
-            <Text style={{ color: '#b8c1ec', fontSize: hp('1.5%') }}>Note: Specific day and time aren't necessary, you can select month and year</Text>
+            <Text style={{ color: "#b8c1ec", fontSize: hp("1.5%") }}>
+              Note: Specific day and time aren't necessary, you can select month
+              and year
+            </Text>
             <View style={styles.scheduleInputContainer}>
-              <Text style={styles.scheduleLabel}>Date: <Text style={{ color: '#b8c1ec' }}>[DD-MM-YYYY]</Text></Text>
+              <Text style={styles.scheduleLabel}>
+                Date: <Text style={{ color: "#b8c1ec" }}>[DD-MM-YYYY]</Text>
+              </Text>
               <View style={styles.dateTimeRow}>
-                {renderDropdown(days, selectedDay, setSelectedDay, showDayDropdown, setShowDayDropdown)}
-                {renderDropdown(months, selectedMonth, setSelectedMonth, showMonthDropdown, setShowMonthDropdown)}
-                {renderDropdown(years, selectedYear, setSelectedYear, showYearDropdown, setShowYearDropdown)}
+                {renderDropdown(
+                  days,
+                  selectedDay,
+                  setSelectedDay,
+                  showDayDropdown,
+                  setShowDayDropdown
+                )}
+                {renderDropdown(
+                  months,
+                  selectedMonth,
+                  setSelectedMonth,
+                  showMonthDropdown,
+                  setShowMonthDropdown
+                )}
+                {renderDropdown(
+                  years,
+                  selectedYear,
+                  setSelectedYear,
+                  showYearDropdown,
+                  setShowYearDropdown
+                )}
               </View>
 
-              <Text style={styles.scheduleLabel}>Time: <Text style={{ color: '#b8c1ec' }}>[HH:MM AM/PM]</Text></Text>
+              <Text style={styles.scheduleLabel}>
+                Time: <Text style={{ color: "#b8c1ec" }}>[HH:MM AM/PM]</Text>
+              </Text>
               <View style={styles.dateTimeRow}>
-                {renderDropdown(hours, selectedHour, setSelectedHour, showHourDropdown, setShowHourDropdown)}
-                {renderDropdown(minutes, selectedMinute, setSelectedMinute, showMinuteDropdown, setShowMinuteDropdown)}
-                {renderDropdown(amPmOptions, selectedAmPm, setSelectedAmPm, showAmPmDropdown, setShowAmPmDropdown)}
+                {renderDropdown(
+                  hours,
+                  selectedHour,
+                  setSelectedHour,
+                  showHourDropdown,
+                  setShowHourDropdown
+                )}
+                {renderDropdown(
+                  minutes,
+                  selectedMinute,
+                  setSelectedMinute,
+                  showMinuteDropdown,
+                  setShowMinuteDropdown
+                )}
+                {renderDropdown(
+                  amPmOptions,
+                  selectedAmPm,
+                  setSelectedAmPm,
+                  showAmPmDropdown,
+                  setShowAmPmDropdown
+                )}
               </View>
             </View>
-            <View>
-
-            </View>
+            <View></View>
             <TouchableOpacity
               style={[
                 styles.scheduleButton,
                 // (!selectedDay || !selectedMonth || !selectedYear ||
                 //   !selectedHour || !selectedMinute || !selectedAmPm) && styles.disabledButton
-                (!selectedMonth || !selectedYear) && styles.disabledButton
+                (!selectedMonth || !selectedYear) && styles.disabledButton,
               ]}
               onPress={handleSchedule}
-              disabled={!selectedMonth || !selectedYear}>
+              disabled={!selectedMonth || !selectedYear}
+            >
               <Text style={styles.scheduleButtonText}>Schedule</Text>
             </TouchableOpacity>
           </View>
@@ -1295,6 +1540,8 @@ export default function HomeScreen() {
         isLoading={isLoadingAI}
         selectedTopic={selectedTopic}
         onSaveResources={handleSaveResources}
+        // setNewSearchQuery={setNewSearchQuery}
+        // handleFetchButton={handleFetchButton}
       />
     </SafeAreaView>
   );
@@ -1303,87 +1550,87 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: "#121212",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#232946',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#232946",
   },
   header: {
-    padding: wp('4%'),
+    padding: wp("4%"),
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    borderRadius: wp('2%'),
-    marginTop: hp('2%'),
-    paddingHorizontal: wp('3%'),
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E1E1E",
+    borderRadius: wp("2%"),
+    marginTop: hp("2%"),
+    paddingHorizontal: wp("3%"),
   },
   searchInput: {
     flex: 1,
-    color: '#fff',
-    padding: wp('2%'),
-    fontSize: wp('3%'),
+    color: "#fff",
+    padding: wp("2%"),
+    fontSize: wp("3%"),
   },
   searchIcon: {
-    marginLeft: wp('2%'),
+    marginLeft: wp("2%"),
   },
   searchResultsContainer: {
-    backgroundColor: '#121629',
-    marginHorizontal: wp('4%'),
-    borderRadius: wp('2%'),
-    maxHeight: hp('25%'),
-    marginTop: hp('2%'),
+    backgroundColor: "#121629",
+    marginHorizontal: wp("4%"),
+    borderRadius: wp("2%"),
+    maxHeight: hp("25%"),
+    marginTop: hp("2%"),
   },
   searchResults: {
-    padding: wp('2%'),
+    padding: wp("2%"),
   },
   searchResultItem: {
-    padding: wp('3%'),
+    padding: wp("3%"),
     borderBottomWidth: 1,
-    borderBottomColor: '#232946',
+    borderBottomColor: "#232946",
   },
   searchResultTitle: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
-    marginBottom: hp('1%'),
+    color: "#fff",
+    fontSize: wp("3%"),
+    fontWeight: "bold",
+    marginBottom: hp("1%"),
   },
   searchResultResource: {
-    color: '#b8c1ec',
-    fontSize: wp('3.5%'),
-    marginLeft: wp('2%'),
+    color: "#b8c1ec",
+    fontSize: wp("3.5%"),
+    marginLeft: wp("2%"),
   },
   highlightedText: {
-    backgroundColor: '#FFD700',
-    color: '#000',
+    backgroundColor: "#FFD700",
+    color: "#000",
   },
   content: {
     flex: 1,
-    padding: wp('4%'),
+    padding: wp("4%"),
   },
   topicsContainer: {
-    gap: hp('1.5%'),
+    gap: hp("1.5%"),
   },
   topicCardContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hp('2%'),
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hp("2%"),
+    justifyContent: "space-between",
   },
   topicCard: {
-    width: wp('70%'),
-    padding: wp('4%'),
-    borderRadius: wp('2%'),
-    backgroundColor: '#1E1E1E',
+    width: wp("70%"),
+    padding: wp("4%"),
+    borderRadius: wp("2%"),
+    backgroundColor: "#1E1E1E",
     borderWidth: 0.4,
-    borderColor: '#b8c1ec',
-    shadowColor: '#000',
+    borderColor: "#b8c1ec",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1393,133 +1640,133 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   topicCardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   editButton: {
-    padding: wp('1%'),
+    padding: wp("1%"),
   },
   addButton: {
-    marginTop: hp('2%'),
-    padding: wp('4%'),
-    backgroundColor: '#121212',
-    borderRadius: wp('2%'),
-    alignItems: 'center',
+    marginTop: hp("2%"),
+    padding: wp("4%"),
+    backgroundColor: "#121212",
+    borderRadius: wp("2%"),
+    alignItems: "center",
     // borderWidth: 1,
     // borderColor: '#b8c1ec',
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
   },
   addTopicModalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   addTopicModalContent: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
     borderRadius: 15,
     padding: 20,
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
-    alignItems: 'center',
+    alignItems: "center",
   },
   addTopicModalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 20,
   },
   addTopicInput: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: "#2A2A2A",
     borderRadius: 10,
     padding: 15,
-    width: '100%',
-    color: '#fff',
+    width: "100%",
+    color: "#fff",
     fontSize: 16,
     marginBottom: 20,
   },
   addTopicButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 10,
     marginTop: 10,
   },
   addTopicButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
-    justifyContent: 'flex-end',
+    backgroundColor: "#1E1E1E",
+    justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: '#1E1E1E ',
-    height: '100%',
-    borderTopLeftRadius: wp('2.5%'),
-    borderTopRightRadius: wp('2.5%'),
-    padding: wp('4%'),
+    backgroundColor: "#1E1E1E ",
+    height: "100%",
+    borderTopLeftRadius: wp("2.5%"),
+    borderTopRightRadius: wp("2.5%"),
+    padding: wp("4%"),
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hp('2%'),
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hp("2%"),
   },
   closeButton: {
-    padding: wp('2%'),
+    padding: wp("2%"),
   },
   titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#1E1E1E",
+    // flexDirection: 'row',
+    alignItems: "center",
     flex: 1,
   },
   titleEditContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   modalTitle: {
-    marginLeft: wp('2%'),
-    fontSize: wp('4.2%'),
-    color: 'white',
+    marginLeft: wp("2%"),
+    fontSize: wp("4.2%"),
+    color: "white",
   },
   titleInput: {
     flex: 1,
-    backgroundColor: '1E1E1E ',
-    padding: wp('2%'),
-    borderRadius: wp('2%'),
-    marginLeft: wp('2%'),
-    fontSize: wp('4%'),
-    color: '#fff',
-
+    backgroundColor: "#1E1E1E",
+    padding: wp("2%"),
+    borderRadius: wp("2%"),
+    marginLeft: wp("2%"),
+    fontSize: wp("4%"),
+    color: "#fff",
   },
   editTitleButton: {
-    padding: wp('2%'),
-    marginLeft: wp('2%'),
+    padding: wp("2%"),
+    marginLeft: wp("2%"),
   },
   saveTitleButton: {
-    padding: wp('2%'),
-    marginLeft: wp('2%'),
+    padding: wp("2%"),
+    marginLeft: wp("2%"),
   },
   resourcesList: {
     flex: 1,
   },
   resourceItem: {
-    flexDirection: 'row',
-    backgroundColor: '#121212',
-    padding: wp('3%'),
-    borderRadius: wp('2%'),
-    marginBottom: hp('1%'),
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#121212",
+    padding: wp("3%"),
+    borderRadius: wp("2%"),
+    marginBottom: hp("1%"),
+    alignItems: "center",
     borderWidth: 0.4,
-    borderColor: '#b8c1ec',
-    shadowColor: '#000',
+    borderColor: "#b8c1ec",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -1527,288 +1774,288 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
     elevation: 2,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   resourceNumber: {
-    color: '#fff',
-    marginRight: wp('2%'),
-    fontWeight: 'bold',
-    width: wp('5%'),
+    color: "#fff",
+    marginRight: wp("2%"),
+    fontWeight: "bold",
+    width: wp("5%"),
   },
   resourceText: {
-    color: '#fff',
+    color: "#fff",
     flex: 1,
-    marginRight: wp('2%'),
+    marginRight: wp("2%"),
     flexShrink: 1,
   },
   newResourceContainer: {
-    flexDirection: 'row',
-    marginTop: hp('2%'),
+    flexDirection: "row",
+    marginTop: hp("2%"),
     // marginBottom: hp('2%'),
-    width: wp('95%'),
+    width: wp("95%"),
   },
   newResourceInput: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
-    padding: wp('3%'),
-    borderRadius: wp('2%'),
-    marginRight: wp('2%'),
-    fontSize: wp('3%'),
-    color: '#fff',
+    backgroundColor: "#1E1E1E",
+    padding: wp("3%"),
+    borderRadius: wp("2%"),
+    marginRight: wp("2%"),
+    fontSize: wp("3%"),
+    color: "#fff",
   },
   addResourceButton: {
     // backgroundColor: '#fff',
-    padding: wp('4%'),
-    borderRadius: wp('2%'),
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: wp("4%"),
+    borderRadius: wp("2%"),
+    justifyContent: "center",
+    alignItems: "center",
   },
   mediaButton: {
     // width: wp('10%'),
     // backgroundColor: '#fff',
-    padding: wp('4%'),
-    borderRadius: wp('2%'),
-    marginLeft: wp('1%'),
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: wp("4%"),
+    borderRadius: wp("2%"),
+    marginLeft: wp("1%"),
+    justifyContent: "center",
+    alignItems: "center",
   },
   calendarButton: {
-    padding: wp('2%'),
-    backgroundColor: '#232946',
-    borderRadius: wp('2%'),
+    padding: wp("2%"),
+    backgroundColor: "#232946",
+    borderRadius: wp("2%"),
     borderWidth: 1,
-    borderColor: '#b8c1ec',
+    borderColor: "#b8c1ec",
   },
   scheduleInputContainer: {
-    padding: wp('4%'),
+    padding: wp("4%"),
   },
   scheduleLabel: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    marginBottom: hp('1%'),
+    color: "#fff",
+    fontSize: wp("3%"),
+    marginBottom: hp("1%"),
   },
   dateTimeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: hp('2%'),
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: hp("2%"),
   },
   scheduleButton: {
-    backgroundColor: '#4CAF50',
-    padding: wp('4%'),
-    borderRadius: wp('2%'),
-    alignItems: 'center',
-    margin: wp('4%'),
+    backgroundColor: "#4CAF50",
+    padding: wp("4%"),
+    borderRadius: wp("2%"),
+    alignItems: "center",
+    margin: wp("4%"),
   },
   scheduleButtonText: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: wp("3%"),
+    fontWeight: "bold",
   },
   disabledButton: {
-    backgroundColor: '#666',
+    backgroundColor: "#666",
   },
   dropdownContainer: {
     flex: 1,
-    marginHorizontal: wp('1%'),
+    marginHorizontal: wp("1%"),
   },
   dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121629',
-    padding: wp('3%'),
-    borderRadius: wp('2%'),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#121629",
+    padding: wp("3%"),
+    borderRadius: wp("2%"),
   },
   dropdownButtonText: {
-    color: '#fff',
-    fontSize: wp('3%'),
+    color: "#fff",
+    fontSize: wp("3%"),
   },
   dropdownList: {
-    maxHeight: hp('30%'),
-    backgroundColor: '#121629',
-    borderRadius: wp('2%'),
-    marginTop: hp('6%'),
-    position: 'absolute',
-    width: '100%',
+    maxHeight: hp("30%"),
+    backgroundColor: "#121629",
+    borderRadius: wp("2%"),
+    marginTop: hp("6%"),
+    position: "absolute",
+    width: "100%",
     zIndex: 1,
   },
   dropdownItem: {
-    padding: wp('3%'),
+    padding: wp("3%"),
     borderBottomWidth: 1,
-    borderBottomColor: '#232946',
+    borderBottomColor: "#232946",
   },
   dropdownItemText: {
-    color: '#fff',
-    fontSize: wp('3%'),
+    color: "#fff",
+    fontSize: wp("3%"),
   },
   topicActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: wp('2%'),
-    gap: wp('2%'),
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: wp("2%"),
+    gap: wp("2%"),
   },
   deleteButton: {
-    padding: wp('2%'),
-    backgroundColor: '#232946',
-    borderRadius: wp('2%'),
+    padding: wp("2%"),
+    backgroundColor: "#232946",
+    borderRadius: wp("2%"),
     borderWidth: 1,
-    borderColor: '#ff4444',
+    borderColor: "#ff4444",
   },
   resourceEditContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: wp('2%'),
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: wp("2%"),
   },
   resourceEditInput: {
     flex: 1,
-    backgroundColor: '#232946',
-    color: '#fff',
-    padding: wp('2%'),
-    borderRadius: wp('1%'),
-    marginRight: wp('2%'),
+    backgroundColor: "#232946",
+    color: "#fff",
+    padding: wp("2%"),
+    borderRadius: wp("1%"),
+    marginRight: wp("2%"),
     flexShrink: 1,
   },
   resourceActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 'auto',
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: "auto",
   },
   resourceActionButton: {
-    padding: wp('1%'),
-    marginLeft: wp('2%'),
-    backgroundColor: '#232946',
-    borderRadius: wp('1%'),
+    padding: wp("1%"),
+    marginLeft: wp("2%"),
+    backgroundColor: "#232946",
+    borderRadius: wp("1%"),
     borderWidth: 1,
-    borderColor: '#b8c1ec',
+    borderColor: "#b8c1ec",
   },
   saveResourceButton: {
-    padding: wp('1%'),
+    padding: wp("1%"),
   },
   modalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   shareButton: {
-    padding: wp('2%'),
-    marginLeft: wp('2%'),
+    padding: wp("2%"),
+    marginLeft: wp("2%"),
   },
   resourceImage: {
-    width: '100%',
+    width: "100%",
     height: undefined,
     aspectRatio: 1,
-    borderRadius: wp('2%'),
-    marginTop: hp('1%'),
-    backgroundColor: '#232946',
+    borderRadius: wp("2%"),
+    marginTop: hp("1%"),
+    backgroundColor: "#232946",
   },
   collapsibleContainer: {
-    backgroundColor: '#232946',
-    borderRadius: wp('2%'),
-    padding: wp('2%'),
-    marginBottom: hp('1%'),
-
+    backgroundColor: "#232946",
+    borderRadius: wp("2%"),
+    padding: wp("2%"),
+    marginBottom: hp("1%"),
   },
   collapsibleTitle: {
-    color: '#fff',
-    fontSize: wp('4%'),
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: wp("4%"),
+    fontWeight: "bold",
   },
   collapsibleContent: {
-    marginTop: hp('1%'),
+    marginTop: hp("1%"),
   },
   aiButton: {
-    padding: wp('2%'),
-    marginLeft: wp('2%'),
+    padding: wp("2%"),
+    marginLeft: wp("2%"),
   },
   section: {
-    marginBottom: hp('2%'),
+    marginBottom: hp("2%"),
   },
   card: {
-    padding: wp('3%'),
+    padding: wp("3%"),
     borderBottomWidth: 1,
-    borderBottomColor: '#232946',
+    borderBottomColor: "#232946",
   },
   cardTitle: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: wp("3%"),
+    fontWeight: "bold",
   },
   cardSummary: {
-    color: '#b8c1ec',
-    fontSize: wp('3%'),
+    color: "#b8c1ec",
+    fontSize: wp("3%"),
   },
   cardScore: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: wp("3%"),
+    fontWeight: "bold",
   },
   cardTime: {
-    color: '#b8c1ec',
-    fontSize: wp('3%'),
+    color: "#b8c1ec",
+    fontSize: wp("3%"),
   },
   imageCard: {
-    marginRight: wp('2%'),
+    marginRight: wp("2%"),
   },
   image: {
-    width: wp('100%'),
+    width: wp("100%"),
     height: undefined,
     aspectRatio: 1,
-    borderRadius: wp('2%'),
+    borderRadius: wp("2%"),
   },
   imageTitle: {
-    color: '#fff',
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: wp("3%"),
+    fontWeight: "bold",
   },
   collapsibleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: wp('2%'),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingRight: wp("2%"),
   },
   deleteCollapsibleButton: {
-    padding: wp('2%'),
+    padding: wp("2%"),
   },
   taglineContainer: {
     marginTop: hp(1),
     // marginBottom: hp(2),
   },
   tagline: {
-    color: '#b8c1ec',
-    fontStyle: 'italic',
+    color: "#b8c1ec",
+    fontStyle: "italic",
     fontSize: hp(1.5),
     // textAlign: '',
     // marginVertical: hp(0.5),
   },
+
   documentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: wp('3%'),
-    backgroundColor: '#232946',
-    borderRadius: wp('2%'),
-    marginTop: hp('1%'),
+    flexDirection: "row",
+    alignItems: "center",
+    padding: wp("3%"),
+    backgroundColor: "#232946",
+    borderRadius: wp("2%"),
+    marginTop: hp("1%"),
   },
   documentInfo: {
     flex: 1,
-    marginLeft: wp('2%'),
+    marginLeft: wp("2%"),
   },
   documentName: {
-    color: '#fff',
-    fontSize: wp('3%'),
+    color: "#fff",
+    fontSize: wp("3%"),
   },
   documentSize: {
-    color: '#b8c1ec',
-    fontSize: wp('2.5%'),
-    marginTop: hp('0.5%'),
+    color: "#b8c1ec",
+    fontSize: wp("2.5%"),
+    marginTop: hp("0.5%"),
   },
   documentActionButton: {
-    padding: wp('2%'),
-    marginLeft: wp('2%'),
+    padding: wp("2%"),
+    marginLeft: wp("2%"),
   },
   documentImage: {
-    width: '100%',
-    height: hp('20%'),
-    borderRadius: wp('2%'),
-    backgroundColor: '#232946',
+    width: "100%",
+    height: hp("20%"),
+    borderRadius: wp("2%"),
+    backgroundColor: "#232946",
   },
-}); 
+});

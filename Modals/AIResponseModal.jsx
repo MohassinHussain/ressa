@@ -59,6 +59,7 @@ export default function AIResponseModal({
   isLoading,
   selectedTopic,
   onSaveResources,
+
 }) {
   let dataToDisplay = responseData || SAMPLE_DATA;
   if (responseData) dataToDisplay = responseData.resources;
@@ -158,6 +159,14 @@ const handleSaveAllResources = async () => {
   }
 };
 
+
+const handleNewResources = () => {
+  console.log("CLCC");
+  // const customQuery = "Other Resources for " + selectedTopic?.title;
+  // handleFetchButton(customQuery);
+};
+
+
   return (
     <Modal
       visible={visible}
@@ -185,6 +194,7 @@ const handleSaveAllResources = async () => {
             </View>
           ) : (
             <ScrollView style={styles.content}>
+              
               <View>
                 <Text
                   style={{
@@ -194,7 +204,7 @@ const handleSaveAllResources = async () => {
                     marginBottom: hp(2),
                   }}
                 >
-                  Fetched Resources 💪🏾
+                  Fetched Resources 
                 </Text>
               </View>
               <View style={{ marginBottom: hp(1.5) }}>
@@ -268,6 +278,9 @@ const handleSaveAllResources = async () => {
                     <Text style={{color: "#001858", fontWeight: "bold", textAlign: "center", fontSize: hp(1.5)}}>Save All Resources</Text>
                   </TouchableOpacity>
 
+                  <TouchableOpacity style={{alignItems: "center", marginTop: hp(4)}} onPress={handleNewResources}>
+                <Text style={{fontSize: hp(2)}}>Get new resources</Text>
+              </TouchableOpacity>
             </ScrollView>
           )}
         </View>
@@ -283,7 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#fbc59a",
+    backgroundColor: "#b8c1ec",
     height: "75%",
     borderTopLeftRadius: wp("2.5%"),
     borderTopRightRadius: wp("2.5%"),
