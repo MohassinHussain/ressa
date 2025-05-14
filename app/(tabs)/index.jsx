@@ -40,6 +40,8 @@ import * as DocumentPicker from "expo-document-picker";
 import { Platform } from "react-native";
 import * as Calendar from 'expo-calendar';
 
+import * as IntentLauncher from 'expo-intent-launcher';
+
 const STORAGE_KEY = "@learning_resources";
 const SCHEDULED_TOPICS_KEY = "@scheduled_topics";
 
@@ -1013,7 +1015,7 @@ export default function HomeScreen() {
         );
       // }
 
-      const res = await axios.post("http://onrender:5000", form, {
+      const res = await axios.post("https://onrender.com/ressa-model", form, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
