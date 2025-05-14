@@ -37,8 +37,8 @@ import React from "react";
 import axios from "axios";
 import AIResponseModal from "@/Modals/AIResponseModal";
 import * as DocumentPicker from "expo-document-picker";
-import * as IntentLauncher from "expo-intent-launcher";
 import { Platform } from "react-native";
+import * as Calendar from 'expo-calendar';
 
 const STORAGE_KEY = "@learning_resources";
 const SCHEDULED_TOPICS_KEY = "@scheduled_topics";
@@ -58,21 +58,14 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [scheduledTime, setScheduledTime] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [scheduledTopics, setScheduledTopics] = useState([]);
-  const [selectedDay, setSelectedDay] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
-  const [selectedHour, setSelectedHour] = useState("");
-  const [selectedMinute, setSelectedMinute] = useState("");
-  const [selectedAmPm, setSelectedAmPm] = useState("");
-  const [showDayDropdown, setShowDayDropdown] = useState(false);
-  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
-  const [showYearDropdown, setShowYearDropdown] = useState(false);
-  const [showHourDropdown, setShowHourDropdown] = useState(false);
-  const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
-  const [showAmPmDropdown, setShowAmPmDropdown] = useState(false);
+  const [selectedCalendar, setSelectedCalendar] = useState(null);
+  const [availableCalendars, setAvailableCalendars] = useState([]);
+  const [hasCalendarPermission, setHasCalendarPermission] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
   const [editedResource, setEditedResource] = useState("");
 
@@ -85,39 +78,22 @@ export default function HomeScreen() {
   const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const days = Array.from({ length: 31 }, (_, i) =>
-    (i + 1).toString().padStart(2, "0")
-  );
-  days[0] = "None";
-  const months = [
-    "None",
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-  const years = Array.from({ length: 5 }, (_, i) =>
-    (new Date().getFullYear() + i).toString()
-  );
-  years[0] = "None";
-  const hours = Array.from({ length: 12 }, (_, i) =>
-    (i + 1).toString().padStart(2, "0")
-  );
-  hours[0] = "None";
-  const minutes = Array.from({ length: 60 }, (_, i) =>
-    i.toString().padStart(2, "0")
-  );
-  hours[0] = "None";
-  const amPmOptions = ["AM", "PM"];
-  hours[0] = "None";
+  // Request calendar permissions
+  useEffect(() => {
+    (async () => {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      setHasCalendarPermission(status === 'granted');
+      
+      if (status === 'granted') {
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        setAvailableCalendars(calendars);
+        
+        if (calendars.length > 0) {
+          setSelectedCalendar(calendars[0]);
+        }
+      }
+    })();
+  }, []);
 
   const taglines = [
     "Organize, Save, Learn.",
@@ -235,7 +211,16 @@ export default function HomeScreen() {
         isScheduled: true,
       };
 
-      const updatedScheduledTopics = [...scheduledTopics, scheduledTopic];
+      // Get existing scheduled topics
+      const storedData = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+      let existingScheduledTopics = storedData ? JSON.parse(storedData) : [];
+      
+      // Remove any previous entries of this topic to avoid duplicates
+      existingScheduledTopics = existingScheduledTopics.filter(t => t.id !== topic.id);
+      
+      // Add the newly scheduled topic
+      const updatedScheduledTopics = [...existingScheduledTopics, scheduledTopic];
+      
       setScheduledTopics(updatedScheduledTopics);
       await AsyncStorage.setItem(
         SCHEDULED_TOPICS_KEY,
@@ -265,13 +250,33 @@ export default function HomeScreen() {
         return topic;
       });
 
+      // Update main topics
       setTopics(updatedTopics);
       setSelectedTopic(
         updatedTopics.find((t) => t.id === selectedTopic.id) || null
       );
-      setNewResource("");
-
       await saveData(updatedTopics);
+
+      // Update scheduled topics if the topic is scheduled
+      const storedScheduledTopics = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+      if (storedScheduledTopics) {
+        const scheduledTopics = JSON.parse(storedScheduledTopics);
+        const updatedScheduledTopics = scheduledTopics.map((topic) => {
+          if (topic.id === selectedTopic.id) {
+            return {
+              ...topic,
+              resources: [...topic.resources, newResource.trim()],
+            };
+          }
+          return topic;
+        });
+        await AsyncStorage.setItem(
+          SCHEDULED_TOPICS_KEY,
+          JSON.stringify(updatedScheduledTopics)
+        );
+      }
+
+      setNewResource("");
     }
   };
 
@@ -334,23 +339,165 @@ export default function HomeScreen() {
     );
   };
 
-  const handleSchedule = async () => {
-    if (selectedMonth && selectedYear) {
-      const scheduledDate = `${selectedDay}-${selectedMonth}-${selectedYear}`;
-      const scheduledTime = `${selectedHour}-${selectedMinute}-00 ${selectedAmPm}`;
-      await saveScheduledTopic(selectedTopic, scheduledTime, scheduledDate);
-      setIsScheduling(false);
-      resetScheduleFields();
+  // Get list of months for selection
+  const getMonthsList = () => {
+    return [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+  };
+
+  // Get available years (current year and next 5 years)
+  const getYearsList = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = 0; i < 6; i++) {
+      years.push((currentYear + i).toString());
+    }
+    return years;
+  };
+
+  // Get days in a month
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  // Get days list based on selected month and year
+  const getDaysList = () => {
+    if (!selectedMonth || !selectedYear) return [];
+    
+    const monthIndex = getMonthsList().findIndex(m => m === selectedMonth);
+    const daysInMonth = getDaysInMonth(parseInt(selectedYear), monthIndex);
+    
+    const days = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i.toString());
+    }
+    return days;
+  };
+
+  // Format date for display
+  const formatScheduleDate = () => {
+    const currentDate = new Date();
+    
+    if (!selectedMonth && !selectedYear) {
+      // If nothing is selected, use today's date
+      const day = currentDate.getDate();
+      const month = getMonthsList()[currentDate.getMonth()];
+      const year = currentDate.getFullYear();
+      return `${day} ${month}, ${year}`;
+    } else if (selectedMonth && selectedYear && !selectedDate) {
+      // If month and year selected but no date, use 1st of the month
+      return `1 ${selectedMonth}, ${selectedYear}`;
+    } else if (selectedMonth && selectedYear && selectedDate) {
+      // If all are selected, use the complete selection
+      return `${selectedDate} ${selectedMonth}, ${selectedYear}`;
+    } else if (selectedYear && !selectedMonth) {
+      // If only year is selected, use January 1st
+      return `1 January, ${selectedYear}`;
+    } else {
+      // For other cases, use today
+      const day = currentDate.getDate();
+      const month = getMonthsList()[currentDate.getMonth()];
+      const year = currentDate.getFullYear();
+      return `${day} ${month}, ${year}`;
     }
   };
 
-  const resetScheduleFields = () => {
-    setSelectedDay("");
-    setSelectedMonth("");
-    setSelectedYear("");
-    setSelectedHour("");
-    setSelectedMinute("");
-    setSelectedAmPm("");
+  // Get the actual date object from selections
+  const getScheduleDate = () => {
+    const currentDate = new Date();
+    
+    if (!selectedMonth && !selectedYear) {
+      // If nothing is selected, use today
+      return currentDate;
+    } else if (selectedMonth && selectedYear && !selectedDate) {
+      // If month and year selected but no date, use 1st of the month
+      const monthIndex = getMonthsList().findIndex(m => m === selectedMonth);
+      return new Date(parseInt(selectedYear), monthIndex, 1);
+    } else if (selectedMonth && selectedYear && selectedDate) {
+      // If all are selected, use the complete selection
+      const monthIndex = getMonthsList().findIndex(m => m === selectedMonth);
+      return new Date(parseInt(selectedYear), monthIndex, parseInt(selectedDate));
+    } else if (selectedYear && !selectedMonth) {
+      // If only year is selected, use January 1st
+      return new Date(parseInt(selectedYear), 0, 1);
+    } else {
+      // For other cases, use today
+      return currentDate;
+    }
+  };
+
+  // Reset date selection fields
+  const resetDateSelection = () => {
+    setSelectedDate('');
+    setSelectedMonth('');
+    setSelectedYear('');
+  };
+
+  // Create an event in the calendar
+  const createCalendarEvent = async (topic) => {
+    try {
+      if (!hasCalendarPermission || !selectedCalendar) {
+        Alert.alert(
+          "Calendar Access Required", 
+          "Please grant calendar access to schedule topics"
+        );
+        return null;
+      }
+
+      // Get selected date or default to today
+      const scheduleDate = getScheduleDate();
+      
+      // Set time to 9:00 AM
+      scheduleDate.setHours(9, 0, 0, 0);
+      
+      // End time (1 hour after start)
+      const endTime = new Date(scheduleDate);
+      endTime.setHours(endTime.getHours() + 1);
+
+      const eventDetails = {
+        title: `Study: ${topic.title}`,
+        notes: `Review your learning resources for ${topic.title}`,
+        startDate: scheduleDate,
+        endDate: endTime,
+        calendarId: selectedCalendar.id,
+      };
+
+      // Create the event
+      const eventId = await Calendar.createEventAsync(selectedCalendar.id, eventDetails);
+      return { 
+        eventId, 
+        date: scheduleDate.toISOString().split('T')[0],
+        formattedDate: formatScheduleDate()
+      };
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+      Alert.alert("Error", "Failed to create calendar event");
+      return null;
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (selectedTopic) {
+      const eventResult = await createCalendarEvent(selectedTopic);
+      
+      if (eventResult) {
+        await saveScheduledTopic(
+          selectedTopic, 
+          "", // No time
+          eventResult.formattedDate
+        );
+        
+        Alert.alert(
+          "Topic Scheduled", 
+          `${selectedTopic.title} has been scheduled for ${eventResult.formattedDate}`
+        );
+        
+        setIsScheduling(false);
+        resetDateSelection();
+      }
+    }
   };
 
   const renderDropdown = (
@@ -511,6 +658,8 @@ export default function HomeScreen() {
     }
   };
 
+  
+
   const handleEditResource = async () => {
     if (editedResource.trim() && selectedTopic && editingResource) {
       const updatedTopics = topics.map((topic) => {
@@ -525,14 +674,36 @@ export default function HomeScreen() {
         return topic;
       });
 
+      // Update main topics
       setTopics(updatedTopics);
       setSelectedTopic(
         updatedTopics.find((t) => t.id === selectedTopic.id) || null
       );
+      await saveData(updatedTopics);
+
+      // Update scheduled topics if the topic is scheduled
+      const storedScheduledTopics = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+      if (storedScheduledTopics) {
+        const scheduledTopics = JSON.parse(storedScheduledTopics);
+        const updatedScheduledTopics = scheduledTopics.map((topic) => {
+          if (topic.id === selectedTopic.id) {
+            return {
+              ...topic,
+              resources: topic.resources.map((resource) =>
+                resource === editingResource ? editedResource.trim() : resource
+              ),
+            };
+          }
+          return topic;
+        });
+        await AsyncStorage.setItem(
+          SCHEDULED_TOPICS_KEY,
+          JSON.stringify(updatedScheduledTopics)
+        );
+      }
+
       setEditingResource(null);
       setEditedResource("");
-
-      await saveData(updatedTopics);
     }
   };
 
@@ -560,12 +731,31 @@ export default function HomeScreen() {
                 return topic;
               });
 
+              // Update main topics
               setTopics(updatedTopics);
               setSelectedTopic(
                 updatedTopics.find((t) => t.id === selectedTopic.id) || null
               );
-
               await saveData(updatedTopics);
+
+              // Update scheduled topics if the topic is scheduled
+              const storedScheduledTopics = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+              if (storedScheduledTopics) {
+                const scheduledTopics = JSON.parse(storedScheduledTopics);
+                const updatedScheduledTopics = scheduledTopics.map((topic) => {
+                  if (topic.id === selectedTopic.id) {
+                    return {
+                      ...topic,
+                      resources: topic.resources.filter((r) => r !== resource),
+                    };
+                  }
+                  return topic;
+                });
+                await AsyncStorage.setItem(
+                  SCHEDULED_TOPICS_KEY,
+                  JSON.stringify(updatedScheduledTopics)
+                );
+              }
             }
           },
         },
@@ -1511,7 +1701,10 @@ export default function HomeScreen() {
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={() => setIsScheduling(false)}
+                onPress={() => {
+                  setIsScheduling(false);
+                  resetDateSelection();
+                }}
               >
                 <AntDesign name="caretleft" size={28} color="white" />
               </TouchableOpacity>
@@ -1519,75 +1712,130 @@ export default function HomeScreen() {
                 Schedule Topic
               </ThemedText>
             </View>
-            <Text style={{ color: "#b8c1ec", fontSize: hp("1.5%") }}>
-              Note: Specific day and time aren't necessary, you can select month
-              and year
-            </Text>
+            
             <View style={styles.scheduleInputContainer}>
-              <Text style={styles.scheduleLabel}>
-                Date: <Text style={{ color: "#b8c1ec" }}>[DD-MM-YYYY]</Text>
+              <Text style={styles.scheduleText}>
+                Select a date to schedule "{selectedTopic?.title}"
               </Text>
-              <View style={styles.dateTimeRow}>
-                {renderDropdown(
-                  days,
-                  selectedDay,
-                  setSelectedDay,
-                  showDayDropdown,
-                  setShowDayDropdown
-                )}
-                {renderDropdown(
-                  months,
-                  selectedMonth,
-                  setSelectedMonth,
-                  showMonthDropdown,
-                  setShowMonthDropdown
-                )}
-                {renderDropdown(
-                  years,
-                  selectedYear,
-                  setSelectedYear,
-                  showYearDropdown,
-                  setShowYearDropdown
-                )}
+              
+              <View style={styles.dateSelectionContainer}>
+                <Text style={styles.scheduleSectionTitle}>Date (optional)</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.datePickerRow}
+                >
+                  {getDaysList().map(day => (
+                    <TouchableOpacity
+                      key={`day-${day}`}
+                      style={[
+                        styles.datePickerItem,
+                        selectedDate === day && styles.selectedDateItem
+                      ]}
+                      onPress={() => setSelectedDate(day)}
+                    >
+                      <Text style={styles.datePickerText}>{day}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
-
-              <Text style={styles.scheduleLabel}>
-                Time: <Text style={{ color: "#b8c1ec" }}>[HH:MM AM/PM]</Text>
-              </Text>
-              <View style={styles.dateTimeRow}>
-                {renderDropdown(
-                  hours,
-                  selectedHour,
-                  setSelectedHour,
-                  showHourDropdown,
-                  setShowHourDropdown
-                )}
-                {renderDropdown(
-                  minutes,
-                  selectedMinute,
-                  setSelectedMinute,
-                  showMinuteDropdown,
-                  setShowMinuteDropdown
-                )}
-                {renderDropdown(
-                  amPmOptions,
-                  selectedAmPm,
-                  setSelectedAmPm,
-                  showAmPmDropdown,
-                  setShowAmPmDropdown
-                )}
+              
+              <View style={styles.dateSelectionContainer}>
+                <Text style={styles.scheduleSectionTitle}>Month</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.datePickerRow}
+                >
+                  {getMonthsList().map(month => (
+                    <TouchableOpacity
+                      key={`month-${month}`}
+                      style={[
+                        styles.datePickerItem,
+                        selectedMonth === month && styles.selectedDateItem
+                      ]}
+                      onPress={() => {
+                        setSelectedMonth(month);
+                        // Reset date when month changes
+                        setSelectedDate('');
+                      }}
+                    >
+                      <Text style={styles.datePickerText}>{month.substr(0, 3)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
+              
+              <View style={styles.dateSelectionContainer}>
+                <Text style={styles.scheduleSectionTitle}>Year</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.datePickerRow}
+                >
+                  {getYearsList().map(year => (
+                    <TouchableOpacity
+                      key={`year-${year}`}
+                      style={[
+                        styles.datePickerItem,
+                        selectedYear === year && styles.selectedDateItem
+                      ]}
+                      onPress={() => {
+                        setSelectedYear(year);
+                        // Reset date when year changes
+                        setSelectedDate('');
+                      }}
+                    >
+                      <Text style={styles.datePickerText}>{year}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              
+              <View style={styles.scheduleSummary}>
+                <Text style={styles.scheduleSummaryText}>
+                  Schedule for: {formatScheduleDate()}
+                </Text>
+              </View>
+              
+              {availableCalendars.length > 0 ? (
+                <View style={styles.calendarSelection}>
+                  <Text style={styles.scheduleSectionTitle}>Select Calendar</Text>
+                  <ScrollView style={styles.calendarList}>
+                    {availableCalendars.map((calendar) => (
+                      <TouchableOpacity
+                        key={calendar.id}
+                        style={[
+                          styles.calendarItem,
+                          selectedCalendar?.id === calendar.id && styles.selectedCalendarItem
+                        ]}
+                        onPress={() => setSelectedCalendar(calendar)}
+                      >
+                        <View 
+                          style={[
+                            styles.calendarColor, 
+                            { backgroundColor: calendar.color || '#4285F4' }
+                          ]} 
+                        />
+                        <Text style={styles.calendarName}>{calendar.title}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                <Text style={styles.noCalendarText}>
+                  No calendars available. Please make sure calendar permissions are granted.
+                </Text>
+              )}
             </View>
-            <View></View>
+
             <TouchableOpacity
               style={[
                 styles.scheduleButton,
-                // (!selectedDay || !selectedMonth || !selectedYear ||
-                //   !selectedHour || !selectedMinute || !selectedAmPm) && styles.disabledButton
-                (!selectedMonth || !selectedYear) && styles.disabledButton,
+                (!hasCalendarPermission || !selectedCalendar) && styles.disabledButton
               ]}
               onPress={handleSchedule}
-              disabled={!selectedMonth || !selectedYear}
+              disabled={!hasCalendarPermission || !selectedCalendar}
             >
               <Text style={styles.scheduleButtonText}>Schedule</Text>
             </TouchableOpacity>
@@ -1595,7 +1843,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* AI Response Modal - Move this outside of other modals */}
+      {/* AI Response Modal */}
       <AIResponseModal
         visible={showAIResponse}
         onClose={() => {
@@ -1606,8 +1854,6 @@ export default function HomeScreen() {
         isLoading={isLoadingAI}
         selectedTopic={selectedTopic}
         onSaveResources={handleSaveResources}
-        // setNewSearchQuery={setNewSearchQuery}
-        // handleFetchButton={handleFetchButton}
       />
     </SafeAreaView>
   );
@@ -1887,23 +2133,93 @@ const styles = StyleSheet.create({
   },
   calendarButton: {
     padding: wp("2%"),
-    backgroundColor: "#232946",
-    borderRadius: wp("2%"),
-    borderWidth: 1,
-    borderColor: "#b8c1ec",
+    // backgroundColor: "#232946",
+    // borderRadius: wp("2%"),
+    // borderWidth: 1,
+    // borderColor: "#b8c1ec",
   },
   scheduleInputContainer: {
     padding: wp("4%"),
   },
-  scheduleLabel: {
-    color: "#fff",
-    fontSize: wp("3%"),
+  scheduleText: {
+    color: "#ffffff",
+    fontSize: wp("3.5%"),
+    marginBottom: hp("2%"),
+    textAlign: "center",
+  },
+  dateSelectionContainer: {
+    marginBottom: hp("2%"),
+  },
+  scheduleSectionTitle: {
+    color: "#b8c1ec",
+    fontSize: wp("3.5%"),
+    marginBottom: hp("1%"),
+    fontWeight: "bold",
+  },
+  datePickerRow: {
+    maxHeight: hp("6%"),
+  },
+  datePickerItem: {
+    backgroundColor: "#232946",
+    paddingVertical: hp("1%"),
+    paddingHorizontal: wp("3%"),
+    borderRadius: wp("2%"),
+    marginRight: wp("2%"),
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: wp("12%"),
+  },
+  selectedDateItem: {
+    backgroundColor: "#4CAF50",
+  },
+  datePickerText: {
+    color: "#ffffff",
+    fontSize: wp("3.5%"),
+  },
+  scheduleSummary: {
+    backgroundColor: "#2A3152",
+    padding: wp("3%"),
+    borderRadius: wp("2%"),
+    marginVertical: hp("2%"),
+  },
+  scheduleSummaryText: {
+    color: "#ffffff",
+    fontSize: wp("3.5%"),
+    textAlign: "center",
+  },
+  calendarSelection: {
+    marginVertical: hp("2%"),
+  },
+  calendarList: {
+    maxHeight: hp("30%"),
+  },
+  calendarItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: wp("3%"),
+    backgroundColor: "#232946",
+    borderRadius: wp("2%"),
     marginBottom: hp("1%"),
   },
-  dateTimeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: hp("2%"),
+  selectedCalendarItem: {
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+  },
+  calendarColor: {
+    width: wp("5%"),
+    height: wp("5%"),
+    borderRadius: wp("2.5%"),
+    marginRight: wp("3%"),
+  },
+  calendarName: {
+    color: "#ffffff",
+    fontSize: wp("3.5%"),
+  },
+  noCalendarText: {
+    color: "#ff4444",
+    fontSize: wp("3.5%"),
+    textAlign: "center",
+    marginVertical: hp("2%"),
   },
   scheduleButton: {
     backgroundColor: "#4CAF50",
@@ -1962,10 +2278,10 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: wp("2%"),
-    backgroundColor: "#232946",
+    // backgroundColor: "#232946",
     borderRadius: wp("2%"),
-    borderWidth: 1,
-    borderColor: "#ff4444",
+    // borderWidth: 1,
+    // borderColor: "#ff4444",
   },
   resourceEditContainer: {
     flex: 1,

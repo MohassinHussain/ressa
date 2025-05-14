@@ -33,14 +33,76 @@ export default function ReviseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
 
+  const loadScheduledTopics = async () => {
+    try {
+      // First get the scheduled topics
+      const storedScheduledData = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
+      if (!storedScheduledData) {
+        setScheduledTopics([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Get the main topics to ensure we have the latest data
+      const storedMainTopics = await AsyncStorage.getItem(STORAGE_KEY);
+      const scheduledTopics = JSON.parse(storedScheduledData);
+      const mainTopics = storedMainTopics ? JSON.parse(storedMainTopics) : [];
+
+      // Filter duplicates - keep only the latest scheduled version of each topic
+      const topicMap = new Map();
+      scheduledTopics.forEach(topic => {
+        // If topic already exists, only replace if this one is newer
+        // We're assuming the topics are in chronological order with newer ones at the end
+        topicMap.set(topic.id, topic);
+      });
+      
+      // Convert map back to array
+      const uniqueScheduledTopics = Array.from(topicMap.values());
+
+      // Update scheduled topics with latest data from main topics
+      const updatedScheduledTopics = uniqueScheduledTopics.map(scheduledTopic => {
+        const mainTopic = mainTopics.find(t => t.id === scheduledTopic.id);
+        if (mainTopic) {
+          // Keep scheduling info but update resources and title
+          return {
+            ...scheduledTopic,
+            title: mainTopic.title,
+            resources: mainTopic.resources
+          };
+        }
+        return scheduledTopic;
+      });
+
+      // Save the updated scheduled topics back to storage
+      await AsyncStorage.setItem(SCHEDULED_TOPICS_KEY, JSON.stringify(updatedScheduledTopics));
+      setScheduledTopics(updatedScheduledTopics);
+    } catch (error) {
+      console.error('Error loading scheduled topics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect for focus events
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadScheduledTopics();
     });
-
     return unsubscribe;
   }, [navigation]);
 
+  // Effect for periodic refresh
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      if (!isLoading) {
+        loadScheduledTopics();
+      }
+    }, 1000); // Check every second for changes
+
+    return () => clearInterval(refreshInterval);
+  }, [isLoading]);
+
+  // Initial load
   useEffect(() => {
     loadScheduledTopics();
   }, []);
@@ -62,19 +124,6 @@ export default function ReviseScreen() {
       setSearchResults([]);
     }
   }, [searchQuery, scheduledTopics]);
-
-  const loadScheduledTopics = async () => {
-    try {
-      const storedData = await AsyncStorage.getItem(SCHEDULED_TOPICS_KEY);
-      if (storedData) {
-        setScheduledTopics(JSON.parse(storedData));
-      }
-    } catch (error) {
-      console.error('Error loading scheduled topics:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleEditTitle = async () => {
     if (editedTitle.trim() && selectedTopic) {
@@ -452,7 +501,7 @@ export default function ReviseScreen() {
               </View>
               <View style={styles.scheduleInfo}>
                 <Text style={styles.scheduleText}>
-                  Scheduled for: {topic.scheduledDate} at {topic.scheduledTime}
+                  Scheduled for: {topic.scheduledDate}
                 </Text>
               </View>
               <Text style={{color: '#b8c1ec', fontWeight: 'bold'}}>{topic.resources.length} resources</Text>
@@ -521,7 +570,7 @@ export default function ReviseScreen() {
             
             <View style={styles.scheduleInfo}>
               <Text style={styles.scheduleText}>
-                Scheduled for: {selectedTopic?.scheduledDate} at {selectedTopic?.scheduledTime}
+                Scheduled for: {selectedTopic?.scheduledDate}
               </Text>
             </View>
 

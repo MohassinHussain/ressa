@@ -181,9 +181,9 @@ export default function SettingsScreen() {
                 ios_backgroundColor="#3e3e3e"
               />
             </View> */}
-            <Link  href="https://docs.google.com/document/d/1eRYMYS-w1wDfgUjq89birFIH1cUpBctI/edit?usp=sharing&ouid=110889650968495214776&rtpof=true&sd=true" style={styles.settingItem}>
+            <Link href="https://docs.google.com/document/d/1eRYMYS-w1wDfgUjq89birFIH1cUpBctI/edit?usp=sharing&ouid=110889650968495214776&rtpof=true&sd=true" style={styles.settingItem}>
               <TouchableOpacity  >
-              <Text style={styles.settingText}>Read Docs</Text>
+                <Text style={styles.settingText}>Read Docs</Text>
               </TouchableOpacity>
               {/* <MaterialIcons name="cloud-upload" size={hp(2.5)} color="#b8c1ec" /> */}
             </Link>
@@ -200,10 +200,14 @@ export default function SettingsScreen() {
               <Text style={styles.settingText}>FAQ</Text>
               <MaterialIcons name="help-outline" size={hp(2.5)} color="#b8c1ec" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.settingItem}>
-              <Text style={styles.settingText}>Contact Support</Text>
-              <MaterialIcons name="email" size={hp(2.5)} color="#b8c1ec" />
-            </TouchableOpacity>
+            <Link href="mailto:ressahelp@gmail.com" >
+            <View style={styles.settingItem}>
+              
+                <Text style={styles.settingText}>Contact Support</Text>
+                <MaterialIcons name="email" size={hp(2.5)} color="#b8c1ec" />
+             
+            </View>
+            </Link>
           </View>
         </View>
 
@@ -276,6 +280,8 @@ const styles = StyleSheet.create({
     paddingVertical: hp('1.5%'),
     borderBottomWidth: 0.4,
     borderBottomColor: '#b8c1ec',
+    marginBottom: hp('1%'),
+
   },
   settingText: {
     color: '#fff',
