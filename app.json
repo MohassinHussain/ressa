@@ -9,13 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mohassin.ressa"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/new-logo.png",
-        "backgroundColor": "#000000",
-        "borderRadius": 20
+        "backgroundColor": "#000000"
       },
       "package": "com.mohassin.ressa",
       "permissions": [
@@ -30,7 +30,6 @@
     "plugins": [
       [
         "expo-image-picker",
-        
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
@@ -42,8 +41,7 @@
           "image": "./assets/images/new-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000000",
-          "borderRadius": 20
+          "backgroundColor": "#000000"
         }
       ]
     ],
@@ -53,7 +51,11 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "f2e0ee49-8f03-4436-9498-8ee70dbb59b2"
       }
-    }
+    },
+    "owner": "mohassin"
   }
 }
