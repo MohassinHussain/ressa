@@ -56,7 +56,7 @@ Ressa addresses these challenges by providing a unified, user-friendly solution 
 ## Getting Started
 
 ### Installation
-1. Download Ressa from the app store
+1. Download Ressa: https://drive.google.com/file/d/1BX2dvCaqppxlvNOFms3ctpKR66H_0YaZ/view?usp=sharing
 2. Launch the application
 3. Grant necessary permissions for file access
 
