@@ -145,3 +145,6 @@ Ressa provides a comprehensive solution for managing learning resources effectiv
 ---
 
 *Note: This documentation is regularly updated. For the latest information, please check the app's documentation section.* 
+*Do not forget to drop a review to the support mail.* 
+
+*App is under development*
